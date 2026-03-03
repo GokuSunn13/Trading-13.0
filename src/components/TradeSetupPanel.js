@@ -136,13 +136,23 @@ const TradeSetupPanel = ({
         budgetPLN: budgetPLN
       };
       
+      console.log("Próba zapisu trade'u (TradeSetupPanel):", tradeData);
+      
       const result = await onEnterTrade(tradeData);
-      setEnterStatus(result?.success ? 'success' : 'error');
+      
+      if (result?.success) {
+        setEnterStatus('success');
+      } else {
+        setEnterStatus('error');
+        console.error('Enter trade failed:', result?.error);
+        alert(result?.error || 'Błąd zapisu trade');
+      }
       
       setTimeout(() => setEnterStatus(null), 3000);
-    } catch (err) {
-      console.error('Enter trade error:', err);
+    } catch (error) {
+      console.error('Enter trade exception:', error);
       setEnterStatus('error');
+      alert(error.message);
     } finally {
       setIsEntering(false);
     }

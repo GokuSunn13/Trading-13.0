@@ -163,13 +163,17 @@ export const enterTrade = async (tradeData) => {
       return { success: true, trade };
     }
 
+    const payload = {
+      ...trade,
+      user_id: user.id,
+      id: undefined // Let Supabase generate UUID
+    };
+
+    console.log("Próba zapisu trade'u:", payload);
+
     const { data, error } = await supabase
       .from('trade_history')
-      .insert({
-        ...trade,
-        user_id: user.id,
-        id: undefined // Let Supabase generate UUID
-      })
+      .insert([payload])
       .select()
       .single();
 

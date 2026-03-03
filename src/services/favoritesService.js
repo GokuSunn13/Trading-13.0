@@ -109,9 +109,12 @@ export const addFavorite = async (symbol) => {
       return { success: true }; // Fallback do localStorage
     }
 
+    const payload = { user_id: user.id, symbol };
+    console.log("Próba zapisu favorite:", payload);
+
     const { error } = await supabase
       .from('favorites')
-      .insert({ user_id: user.id, symbol });
+      .insert([payload]);
 
     if (error && !error.message.includes('duplicate')) {
       console.error('Error adding favorite:', error);

@@ -38,16 +38,30 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
     );
     setTogglingSymbol(symbol);
 
-    // Sync z Supabase
-    const result = await toggleFavoriteApi(symbol, isFavorite);
-    
-    if (!result.success) {
-      // Przywróć poprzedni stan przy błędzie
+    try {
+      console.log("Próba toggle favorite:", { symbol, isFavorite });
+      
+      // Sync z Supabase
+      const result = await toggleFavoriteApi(symbol, isFavorite);
+      
+      if (!result.success) {
+        // Przywróć poprzedni stan przy błędzie
+        setFavorites(prev => 
+          isFavorite ? [...prev, symbol] : prev.filter(s => s !== symbol)
+        );
+        console.error('Toggle favorite error:', result.error);
+        alert(result.error || 'Błąd zapisu do ulubionych');
+      }
+    } catch (error) {
+      console.error('Toggle favorite exception:', error);
+      alert(error.message);
+      // Przywróć poprzedni stan
       setFavorites(prev => 
         isFavorite ? [...prev, symbol] : prev.filter(s => s !== symbol)
       );
+    } finally {
+      setTogglingSymbol(null);
     }
-    setTogglingSymbol(null);
   }, [favorites]);
 
   const categories = {
