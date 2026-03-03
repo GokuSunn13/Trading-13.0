@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -8,16 +8,40 @@ import {
   Check,
   AlertTriangle,
   DollarSign,
-  Loader2
+  Loader2,
+  Send,
+  Smartphone
 } from 'lucide-react';
 
 /**
- * Trade Setup Panel - Kompaktowy panel SL/TP
- * Zawsze widoczny na dole ekranu z h-32 (128px)
+ * Trade Setup Panel - Kompaktowy panel SL/TP z integracją Bybit i Telegram
+ * 
+ * Nowe funkcje:
+ * - "Kopiuj dla Bybit" - formatuje dane do szybkiego wklejenia
+ * - "Wyślij na Telegram" - one-click alert na telefon
+ * - Wizualne statusy i walidacja
  */
-const TradeSetupPanel = ({ tradeSetup, currentPrice, symbol, isAnalyzing }) => {
+const TradeSetupPanel = ({ 
+  tradeSetup, 
+  currentPrice, 
+  symbol, 
+  isAnalyzing,
+  interval = '1h',
+  confidence = 0,
+  onSendTelegram,
+  telegramEnabled = false
+}) => {
   const [copiedField, setCopiedField] = useState(null);
+  const [isSending, setIsSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState(null); // 'success' | 'error' | null
 
+  const formatPrice = (price) => {
+    if (!price) return '--';
+    const precision = symbol?.includes('DOGE') || symbol?.includes('XRP') || symbol?.includes('ADA') ? 4 : 2;
+    return price.toFixed(precision);
+  };
+
+  // Kopiowanie do schowka
   const copyToClipboard = async (value, field) => {
     try {
       await navigator.clipboard.writeText(value.toString());
@@ -28,11 +52,56 @@ const TradeSetupPanel = ({ tradeSetup, currentPrice, symbol, isAnalyzing }) => {
     }
   };
 
-  const formatPrice = (price) => {
-    if (!price) return '--';
-    const precision = symbol?.includes('DOGE') || symbol?.includes('XRP') || symbol?.includes('ADA') ? 4 : 2;
-    return price.toFixed(precision);
-  };
+  // FORMAT DLA BYBIT - czytelny format do wklejenia
+  const copyForBybit = useCallback(async () => {
+    if (!tradeSetup) return;
+    
+    const side = tradeSetup.direction === 'LONG' ? 'Buy' : 'Sell';
+    const bybitFormat = `Symbol: ${symbol?.replace('/', '')} | Typ: ${side} | Entry: ${formatPrice(tradeSetup.entry)} | SL: ${formatPrice(tradeSetup.stopLoss)} | TP: ${formatPrice(tradeSetup.takeProfit)}`;
+    
+    await copyToClipboard(bybitFormat, 'bybit');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tradeSetup, symbol]);
+
+  // WYSYŁKA NA TELEGRAM - one-click
+  const sendToTelegram = useCallback(async () => {
+    if (!tradeSetup || !onSendTelegram) return;
+    
+    setIsSending(true);
+    setSendStatus(null);
+    
+    try {
+      const alertData = {
+        symbol: symbol,
+        interval: interval,
+        direction: tradeSetup.direction,
+        confidence: confidence,
+        entry: tradeSetup.entry,
+        stopLoss: tradeSetup.stopLoss,
+        takeProfit: tradeSetup.takeProfit,
+        slPercent: tradeSetup.slPercent,
+        tpPercent: tradeSetup.tpPercent,
+        riskReward: tradeSetup.riskReward
+      };
+      
+      const result = await onSendTelegram(alertData);
+      setSendStatus(result?.success ? 'success' : 'error');
+      
+      // Reset statusu po 3 sekundach
+      setTimeout(() => setSendStatus(null), 3000);
+    } catch (err) {
+      console.error('Telegram send error:', err);
+      setSendStatus('error');
+    } finally {
+      setIsSending(false);
+    }
+  }, [tradeSetup, symbol, interval, confidence, onSendTelegram]);
+
+  // Walidacja - czy przyciski są aktywne
+  const isDataValid = tradeSetup && 
+    typeof tradeSetup.entry === 'number' && 
+    typeof tradeSetup.stopLoss === 'number' && 
+    typeof tradeSetup.takeProfit === 'number';
 
   // LOADING STATE
   if (isAnalyzing && !tradeSetup) {
@@ -73,7 +142,7 @@ const TradeSetupPanel = ({ tradeSetup, currentPrice, symbol, isAnalyzing }) => {
   return (
     <div className="h-full ultra-glass rounded-xl p-3 flex flex-col justify-between">
       {/* Top Row - Direction & Prices */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3">
         {/* Direction Badge */}
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
           isLong 
@@ -87,7 +156,7 @@ const TradeSetupPanel = ({ tradeSetup, currentPrice, symbol, isAnalyzing }) => {
         </div>
 
         {/* Price Levels - Horizontal */}
-        <div className="flex-1 grid grid-cols-3 gap-3">
+        <div className="flex-1 grid grid-cols-3 gap-2">
           {/* Entry */}
           <PriceBox
             label="Entry"
@@ -122,33 +191,92 @@ const TradeSetupPanel = ({ tradeSetup, currentPrice, symbol, isAnalyzing }) => {
         </div>
 
         {/* R:R Badge */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#BF5AF2]/20 border border-[#BF5AF2]/30">
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[#BF5AF2]/20 border border-[#BF5AF2]/30">
           <span className="text-xs text-white/50">R:R</span>
           <span className="font-bold text-sm text-[#BF5AF2]">{tradeSetup.riskReward}</span>
         </div>
 
-        {/* Copy All Button */}
-        <button
-          onClick={() => {
-            const text = `${symbol} ${tradeSetup.direction}\nEntry: $${formatPrice(tradeSetup.entry)}\nSL: $${formatPrice(tradeSetup.stopLoss)} (-${tradeSetup.slPercent?.toFixed(2)}%)\nTP: $${formatPrice(tradeSetup.takeProfit)} (+${tradeSetup.tpPercent?.toFixed(2)}%)\nR:R ${tradeSetup.riskReward}`;
-            copyToClipboard(text, 'all');
-          }}
-          className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all ${
-            copiedField === 'all'
-              ? 'bg-[#30D158]/20 text-[#30D158] border border-[#30D158]/30'
-              : 'bg-[#007AFF]/20 text-[#007AFF] border border-[#007AFF]/30 hover:bg-[#007AFF]/30'
-          }`}
-        >
-          {copiedField === 'all' ? (
-            <Check className="w-4 h-4" />
-          ) : (
-            <Copy className="w-4 h-4" />
-          )}
-          <span className="hidden lg:inline">{copiedField === 'all' ? 'Skopiowano!' : 'Kopiuj'}</span>
-        </button>
+        {/* ===== ACTION BUTTONS - Bybit & Telegram ===== */}
+        <div className="flex items-center gap-2">
+          {/* Kopiuj dla Bybit */}
+          <button
+            onClick={copyForBybit}
+            disabled={!isDataValid}
+            className={`px-3 py-2 rounded-lg font-medium text-xs flex items-center gap-2 transition-all ${
+              copiedField === 'bybit'
+                ? 'bg-[#30D158]/20 text-[#30D158] border border-[#30D158]/30'
+                : isDataValid
+                  ? 'bg-[#FF9F0A]/20 text-[#FF9F0A] border border-[#FF9F0A]/30 hover:bg-[#FF9F0A]/30'
+                  : 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed'
+            }`}
+            title="Kopiuj sformatowane dane dla Bybit"
+          >
+            {copiedField === 'bybit' ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <Smartphone className="w-4 h-4" />
+            )}
+            <span className="hidden lg:inline">
+              {copiedField === 'bybit' ? 'Skopiowano!' : 'Bybit'}
+            </span>
+          </button>
+
+          {/* Wyślij na Telegram */}
+          <button
+            onClick={sendToTelegram}
+            disabled={!isDataValid || !telegramEnabled || isSending}
+            className={`px-3 py-2 rounded-lg font-medium text-xs flex items-center gap-2 transition-all ${
+              sendStatus === 'success'
+                ? 'bg-[#30D158]/20 text-[#30D158] border border-[#30D158]/30'
+                : sendStatus === 'error'
+                  ? 'bg-[#FF453A]/20 text-[#FF453A] border border-[#FF453A]/30'
+                  : isDataValid && telegramEnabled
+                    ? 'bg-[#007AFF]/20 text-[#007AFF] border border-[#007AFF]/30 hover:bg-[#007AFF]/30'
+                    : 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed'
+            }`}
+            title={telegramEnabled ? 'Wyślij alert na Telegram' : 'Skonfiguruj Telegram w ustawieniach'}
+          >
+            {isSending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : sendStatus === 'success' ? (
+              <Check className="w-4 h-4" />
+            ) : sendStatus === 'error' ? (
+              <AlertTriangle className="w-4 h-4" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+            <span className="hidden lg:inline">
+              {isSending ? 'Wysyłam...' : 
+               sendStatus === 'success' ? 'Wysłano!' :
+               sendStatus === 'error' ? 'Błąd' : 'Telegram'}
+            </span>
+          </button>
+
+          {/* Copy All (stary przycisk) */}
+          <button
+            onClick={() => {
+              const text = `🚀 ${symbol} ${tradeSetup.direction} [${interval}]\n📈 Entry: $${formatPrice(tradeSetup.entry)}\n🛡️ SL: $${formatPrice(tradeSetup.stopLoss)} (-${tradeSetup.slPercent?.toFixed(2)}%)\n🎯 TP: $${formatPrice(tradeSetup.takeProfit)} (+${tradeSetup.tpPercent?.toFixed(2)}%)\n📊 R:R ${tradeSetup.riskReward} | Confidence: ${confidence}%`;
+              copyToClipboard(text, 'all');
+            }}
+            disabled={!isDataValid}
+            className={`px-3 py-2 rounded-lg font-medium text-xs flex items-center gap-2 transition-all ${
+              copiedField === 'all'
+                ? 'bg-[#30D158]/20 text-[#30D158] border border-[#30D158]/30'
+                : isDataValid
+                  ? 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                  : 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed'
+            }`}
+          >
+            {copiedField === 'all' ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <Copy className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Bottom Row - Visual Bar & MTF Warning */}
+      {/* Bottom Row - Visual Bar & Warnings */}
       <div className="flex items-center gap-4 mt-2">
         {/* Visual Price Position Bar */}
         <div className="flex-1">
@@ -176,16 +304,33 @@ const TradeSetupPanel = ({ tradeSetup, currentPrice, symbol, isAnalyzing }) => {
           </div>
         </div>
 
-        {/* MTF Warning Badge */}
-        {tradeSetup.mtfWarning && (
-          <div className="px-3 py-1.5 rounded-lg bg-[#FF9F0A]/20 border border-[#FF9F0A]/30">
-            <span className="text-xs text-[#FF9F0A]">⚠️ Pod prąd 1H</span>
+        {/* Badges Row */}
+        <div className="flex items-center gap-2">
+          {/* Volume Confirmed Badge */}
+          {tradeSetup.volumeConfirmed && (
+            <div className="px-2 py-1 rounded-lg bg-[#30D158]/20 border border-[#30D158]/30">
+              <span className="text-xs text-[#30D158]">✓ Vol</span>
+            </div>
+          )}
+
+          {/* High Risk Scalp Badge */}
+          {tradeSetup.riskLevel === 'high_risk_scalp' && (
+            <div className="px-2 py-1 rounded-lg bg-[#FF9F0A]/20 border border-[#FF9F0A]/30">
+              <span className="text-xs text-[#FF9F0A]">⚡ Scalp</span>
+            </div>
+          )}
+
+          {/* MTF Warning Badge */}
+          {tradeSetup.mtfWarning && (
+            <div className="px-2 py-1 rounded-lg bg-[#FF9F0A]/20 border border-[#FF9F0A]/30">
+              <span className="text-xs text-[#FF9F0A]">⚠️ 1H</span>
+            </div>
+          )}
+          
+          {/* ATR Info */}
+          <div className="text-xs text-white/30 hidden xl:block">
+            SL: ATR×2.0 | R:R 1:2
           </div>
-        )}
-        
-        {/* ATR Info */}
-        <div className="text-xs text-white/30 hidden xl:block">
-          SL: ATR×1.5 | TP: ATR×3 (R:R 1:2)
         </div>
       </div>
     </div>
@@ -201,15 +346,15 @@ const PriceBox = ({ label, icon, value, subtext, color, onCopy, isCopied }) => {
   };
 
   return (
-    <div className={`flex items-center justify-between px-3 py-2 rounded-lg border ${colors[color]}`}>
-      <div className="flex items-center gap-2">
+    <div className={`flex items-center justify-between px-2 py-1.5 rounded-lg border ${colors[color]}`}>
+      <div className="flex items-center gap-1.5">
         <span className={colors[color].split(' ')[0]}>{icon}</span>
         <div>
-          <span className="text-xs text-white/40 block">{label}</span>
+          <span className="text-[10px] text-white/40 block leading-tight">{label}</span>
           <div className="flex items-center gap-1">
-            <span className="font-mono font-bold text-white text-sm">${value}</span>
+            <span className="font-mono font-bold text-white text-xs">${value}</span>
             {subtext && (
-              <span className={`text-xs ${color === 'red' ? 'text-[#FF453A]' : 'text-[#30D158]'}`}>
+              <span className={`text-[10px] ${color === 'red' ? 'text-[#FF453A]' : 'text-[#30D158]'}`}>
                 {subtext}
               </span>
             )}
@@ -218,7 +363,7 @@ const PriceBox = ({ label, icon, value, subtext, color, onCopy, isCopied }) => {
       </div>
       <button
         onClick={onCopy}
-        className="p-1 rounded hover:bg-white/10 transition-colors"
+        className="p-0.5 rounded hover:bg-white/10 transition-colors"
       >
         {isCopied ? (
           <Check className="w-3 h-3 text-[#30D158]" />

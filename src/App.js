@@ -94,6 +94,26 @@ function App() {
     }
   }, []);
 
+  // Manual Telegram send - wywoływane z TradeSetupPanel
+  const sendTelegramManual = useCallback(async (alertData) => {
+    const telegramSettings = getTelegramSettings();
+    if (!telegramSettings.enabled || !telegramSettings.botToken || !telegramSettings.chatId) {
+      return { success: false, message: 'Telegram nie jest skonfigurowany' };
+    }
+
+    return await sendTelegramAlert(
+      telegramSettings.botToken,
+      telegramSettings.chatId,
+      alertData
+    );
+  }, []);
+
+  // Sprawdzanie czy Telegram jest włączony
+  const isTelegramConfigured = useCallback(() => {
+    const settings = getTelegramSettings();
+    return settings.enabled && settings.botToken && settings.chatId;
+  }, []);
+
   // WebSocket initialization
   useEffect(() => {
     wsRef.current = new BinanceWebSocket();
@@ -451,6 +471,7 @@ function App() {
                 onAnalysisUpdate={setAnalysis}
                 isLive={isAutoRefresh && connectionStatus === ConnectionStatus.CONNECTED}
                 interval={selectedTimeframe}
+                tradeSetup={analysis?.tradeSetup}
               />
             ) : (
               <TradingViewWidget
@@ -468,6 +489,10 @@ function App() {
                 currentPrice={analysis?.currentPrice}
                 symbol={selectedSymbol}
                 isAnalyzing={isAnalyzing}
+                interval={selectedTimeframe}
+                confidence={analysis?.confidence || 0}
+                onSendTelegram={sendTelegramManual}
+                telegramEnabled={isTelegramConfigured()}
               />
             </div>
           )}

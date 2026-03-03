@@ -32,7 +32,7 @@ const calculateSMAData = (data, period) => {
   return result;
 };
 
-const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, interval = '1h' }) => {
+const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, interval = '1h', tradeSetup = null }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -41,6 +41,11 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
   const sma50SeriesRef = useRef(null);
   const markersRef = useRef([]);
   const lastDataLengthRef = useRef(0);
+  
+  // Refs dla price lines (SL/TP)
+  const slPriceLineRef = useRef(null);
+  const tpPriceLineRef = useRef(null);
+  const entryPriceLineRef = useRef(null);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [rawPrice, setRawPrice] = useState(null);
@@ -348,6 +353,60 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
       }
     }
   }, [data]);
+
+  // ===== PRICE LINES dla SL/TP/Entry =====
+  useEffect(() => {
+    if (!candleSeriesRef.current) return;
+
+    const series = candleSeriesRef.current;
+
+    // Usuń poprzednie linie
+    if (slPriceLineRef.current) {
+      series.removePriceLine(slPriceLineRef.current);
+      slPriceLineRef.current = null;
+    }
+    if (tpPriceLineRef.current) {
+      series.removePriceLine(tpPriceLineRef.current);
+      tpPriceLineRef.current = null;
+    }
+    if (entryPriceLineRef.current) {
+      series.removePriceLine(entryPriceLineRef.current);
+      entryPriceLineRef.current = null;
+    }
+
+    // Dodaj nowe linie jeśli tradeSetup istnieje
+    if (tradeSetup && tradeSetup.entry && tradeSetup.stopLoss && tradeSetup.takeProfit) {
+      // Entry line - niebieska
+      entryPriceLineRef.current = series.createPriceLine({
+        price: tradeSetup.entry,
+        color: '#007AFF',
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: 'Entry',
+      });
+
+      // Stop Loss line - czerwona
+      slPriceLineRef.current = series.createPriceLine({
+        price: tradeSetup.stopLoss,
+        color: '#FF453A',
+        lineWidth: 2,
+        lineStyle: 0, // Solid
+        axisLabelVisible: true,
+        title: 'SL',
+      });
+
+      // Take Profit line - zielona
+      tpPriceLineRef.current = series.createPriceLine({
+        price: tradeSetup.takeProfit,
+        color: '#30D158',
+        lineWidth: 2,
+        lineStyle: 0, // Solid
+        axisLabelVisible: true,
+        title: 'TP',
+      });
+    }
+  }, [tradeSetup]);
 
   const handleZoomIn = useCallback(() => {
     if (chartRef.current) {
