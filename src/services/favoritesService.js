@@ -24,8 +24,10 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { withTimeout } from '../lib/supabaseHelpers';
 
 const STORAGE_KEY = 'favorites_local';
+const TIMEOUT_MS = 8000; // 8 sekund timeout
 
 /**
  * Pobiera ulubione z localStorage (fallback)
@@ -60,16 +62,19 @@ export const getFavorites = async () => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     
     if (!user) {
       return getLocalFavorites();
     }
 
-    const { data, error } = await supabase
-      .from('favorites')
-      .select('symbol')
-      .eq('user_id', user.id);
+    const { data, error } = await withTimeout(
+      supabase
+        .from('favorites')
+        .select('symbol')
+        .eq('user_id', user.id),
+      TIMEOUT_MS
+    );
 
     if (error) {
       console.error('Error fetching favorites:', error);
@@ -103,7 +108,7 @@ export const addFavorite = async (symbol) => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     
     if (!user) {
       return { success: true }; // Fallback do localStorage
@@ -112,9 +117,12 @@ export const addFavorite = async (symbol) => {
     const payload = { user_id: user.id, symbol };
     console.log("Próba zapisu favorite:", payload);
 
-    const { error } = await supabase
-      .from('favorites')
-      .insert([payload]);
+    const { error } = await withTimeout(
+      supabase
+        .from('favorites')
+        .insert([payload]),
+      TIMEOUT_MS
+    );
 
     if (error && !error.message.includes('duplicate')) {
       console.error('Error adding favorite:', error);
@@ -143,17 +151,20 @@ export const removeFavorite = async (symbol) => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     
     if (!user) {
       return { success: true };
     }
 
-    const { error } = await supabase
-      .from('favorites')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('symbol', symbol);
+    const { error } = await withTimeout(
+      supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('symbol', symbol),
+      TIMEOUT_MS
+    );
 
     if (error) {
       console.error('Error removing favorite:', error);

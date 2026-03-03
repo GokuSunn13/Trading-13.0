@@ -4,6 +4,9 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { withTimeout } from '../lib/supabaseHelpers';
+
+const TIMEOUT_MS = 8000; // 8 sekund timeout
 
 /**
  * Zapisz nową transakcję
@@ -17,27 +20,30 @@ export const saveTrade = async (trade) => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     if (!user) {
       return saveTradeLocal(trade);
     }
 
-    const { data, error } = await supabase
-      .from('trades')
-      .insert({
-        user_id: user.id,
-        symbol: trade.symbol,
-        direction: trade.direction,
-        entry_price: trade.entry,
-        stop_loss: trade.stopLoss,
-        take_profit: trade.takeProfit,
-        confidence: trade.confidence,
-        interval: trade.interval,
-        status: 'pending',
-        notes: trade.notes || null
-      })
-      .select()
-      .single();
+    const { data, error } = await withTimeout(
+      supabase
+        .from('trades')
+        .insert({
+          user_id: user.id,
+          symbol: trade.symbol,
+          direction: trade.direction,
+          entry_price: trade.entry,
+          stop_loss: trade.stopLoss,
+          take_profit: trade.takeProfit,
+          confidence: trade.confidence,
+          interval: trade.interval,
+          status: 'pending',
+          notes: trade.notes || null
+        })
+        .select()
+        .single(),
+      TIMEOUT_MS
+    );
 
     if (error) throw error;
     return { success: true, data };
@@ -80,7 +86,7 @@ export const getTrades = async (options = {}) => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     if (!user) {
       return getTradesLocal(options);
     }
@@ -95,7 +101,7 @@ export const getTrades = async (options = {}) => {
     if (status) query = query.eq('status', status);
     if (symbol) query = query.eq('symbol', symbol);
 
-    const { data, error } = await query;
+    const { data, error } = await withTimeout(query, TIMEOUT_MS);
 
     if (error) throw error;
     return { success: true, data };
@@ -142,15 +148,18 @@ export const updateTrade = async (tradeId, updates) => {
   }
 
   try {
-    const { data, error } = await supabase
-      .from('trades')
-      .update({
-        ...updates,
-        closed_at: updates.status === 'closed' ? new Date().toISOString() : null
-      })
-      .eq('id', tradeId)
-      .select()
-      .single();
+    const { data, error } = await withTimeout(
+      supabase
+        .from('trades')
+        .update({
+          ...updates,
+          closed_at: updates.status === 'closed' ? new Date().toISOString() : null
+        })
+        .eq('id', tradeId)
+        .select()
+        .single(),
+      TIMEOUT_MS
+    );
 
     if (error) throw error;
     return { success: true, data };

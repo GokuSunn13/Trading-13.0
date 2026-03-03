@@ -43,8 +43,10 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { withTimeout } from '../lib/supabaseHelpers';
 
 const STORAGE_KEY = 'trade_history_local';
+const TIMEOUT_MS = 8000; // 8 sekund timeout
 
 /**
  * Pobiera historię z localStorage (fallback)
@@ -157,7 +159,7 @@ export const enterTrade = async (tradeData) => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     
     if (!user) {
       return { success: true, trade };
@@ -171,11 +173,14 @@ export const enterTrade = async (tradeData) => {
 
     console.log("Próba zapisu trade'u:", payload);
 
-    const { data, error } = await supabase
-      .from('trade_history')
-      .insert([payload])
-      .select()
-      .single();
+    const { data, error } = await withTimeout(
+      supabase
+        .from('trade_history')
+        .insert([payload])
+        .select()
+        .single(),
+      TIMEOUT_MS
+    );
 
     if (error) {
       console.error('Error entering trade:', error);
@@ -202,7 +207,7 @@ export const getTradeHistory = async (status = 'all') => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     
     if (!user) {
       return getLocalHistory();
@@ -218,7 +223,7 @@ export const getTradeHistory = async (status = 'all') => {
       query = query.eq('status', status);
     }
 
-    const { data, error } = await query;
+    const { data, error } = await withTimeout(query, TIMEOUT_MS);
 
     if (error) {
       console.error('Error fetching trade history:', error);
@@ -279,15 +284,18 @@ export const closeTrade = async (tradeId, exitPrice, notes = '') => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     if (!user) return { success: true };
 
     // Pobierz trade żeby obliczyć P/L
-    const { data: existingTrade } = await supabase
-      .from('trade_history')
-      .select('*')
-      .eq('id', tradeId)
-      .single();
+    const { data: existingTrade } = await withTimeout(
+      supabase
+        .from('trade_history')
+        .select('*')
+        .eq('id', tradeId)
+        .single(),
+      TIMEOUT_MS
+    );
 
     if (!existingTrade) {
       return { success: false, error: 'Trade not found' };
@@ -301,19 +309,22 @@ export const closeTrade = async (tradeId, exitPrice, notes = '') => {
       pnlPLN = -pnlPLN;
     }
 
-    const { data, error } = await supabase
-      .from('trade_history')
-      .update({
-        status: 'closed',
-        exit_price: exitPrice,
-        actual_pnl_percent: pnlPercent,
-        actual_pnl_pln: pnlPLN,
-        closed_at: new Date().toISOString(),
-        notes: notes || existingTrade.notes
-      })
-      .eq('id', tradeId)
-      .select()
-      .single();
+    const { data, error } = await withTimeout(
+      supabase
+        .from('trade_history')
+        .update({
+          status: 'closed',
+          exit_price: exitPrice,
+          actual_pnl_percent: pnlPercent,
+          actual_pnl_pln: pnlPLN,
+          closed_at: new Date().toISOString(),
+          notes: notes || existingTrade.notes
+        })
+        .eq('id', tradeId)
+        .select()
+        .single(),
+      TIMEOUT_MS
+    );
 
     if (error) {
       console.error('Error closing trade:', error);
