@@ -24,29 +24,19 @@ const TelegramSettings = ({ isOpen, onClose }) => {
     }
   }, [profile]);
 
-  // Zapisz Chat ID do Supabase
+  // Zapisz Chat ID do Supabase - BEZ WALIDACJI
   const handleSave = async () => {
-    if (!user) {
-      setMessage({ type: 'error', text: 'Musisz być zalogowany' });
-      return;
-    }
-
-    // Konwersja na String i trim - bez walidacji formatu
-    const telegramId = String(chatId).trim();
-    
-    // Jedyna walidacja: nie może być puste
-    if (!telegramId) {
-      setMessage({ type: 'error', text: 'Wpisz Chat ID' });
-      return;
-    }
-
     setSaving(true);
     setMessage(null);
-
-    // Debug log - widoczny w konsoli F12
-    console.log("Wysyłane ID (TelegramSettings):", telegramId);
+    console.log("Start zapisu Chat ID...");
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Musisz być zalogowany!");
+
+      const telegramId = String(chatId).trim();
+      console.log("Wysłane ID do bazy:", telegramId);
+
       const { error } = await supabase
         .from('profiles')
         .upsert({
@@ -63,12 +53,15 @@ const TelegramSettings = ({ isOpen, onClose }) => {
         await updateProfile({ telegram_chat_id: telegramId, telegram_enabled: true });
       }
 
+      alert("Sukces! Chat ID zapisany.");
       setMessage({ type: 'success', text: 'Chat ID zapisany!' });
     } catch (err) {
-      console.error('Save error:', err);
-      setMessage({ type: 'error', text: err.message || 'Błąd zapisu' });
+      console.error("DETALE BŁĘDU:", err);
+      alert("Błąd: " + err.message);
+      setMessage({ type: 'error', text: err.message });
     } finally {
       setSaving(false);
+      console.log("Koniec zapisu Chat ID.");
     }
   };
 

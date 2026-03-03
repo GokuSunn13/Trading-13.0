@@ -117,12 +117,13 @@ const TradeSetupPanel = ({
     }
   }, [tradeSetup, symbol, interval, confidence, onSendTelegram]);
 
-  // ENTER TRADE - zapisz do dziennika
+  // ENTER TRADE - zapisz do dziennika - SAFETY PATTERN
   const handleEnterTrade = useCallback(async () => {
     if (!tradeSetup || !onEnterTrade) return;
     
     setIsEntering(true);
     setEnterStatus(null);
+    console.log("Start zapisu trade...");
     
     try {
       const tradeData = {
@@ -136,25 +137,25 @@ const TradeSetupPanel = ({
         budgetPLN: budgetPLN
       };
       
-      console.log("Próba zapisu trade'u (TradeSetupPanel):", tradeData);
+      console.log("Dane trade'u:", tradeData);
       
       const result = await onEnterTrade(tradeData);
       
-      if (result?.success) {
-        setEnterStatus('success');
-      } else {
-        setEnterStatus('error');
-        console.error('Enter trade failed:', result?.error);
-        alert(result?.error || 'Błąd zapisu trade');
+      if (!result?.success) {
+        throw new Error(result?.error || 'Błąd zapisu trade');
       }
       
+      setEnterStatus('success');
+      alert("Sukces! Trade zapisany.");
       setTimeout(() => setEnterStatus(null), 3000);
-    } catch (error) {
-      console.error('Enter trade exception:', error);
+    } catch (err) {
+      console.error("DETALE BŁĘDU trade:", err);
       setEnterStatus('error');
-      alert(error.message);
+      alert("Błąd: " + err.message);
+      setTimeout(() => setEnterStatus(null), 3000);
     } finally {
       setIsEntering(false);
+      console.log("Koniec zapisu trade.");
     }
   }, [tradeSetup, symbol, interval, confidence, budgetPLN, onEnterTrade]);
 

@@ -27,40 +27,37 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
     loadFavorites();
   }, []);
 
-  // Toggle favorite z synchronizacją do Supabase
+  // Toggle favorite z synchronizacją do Supabase - SAFETY PATTERN
   const toggleFavorite = useCallback(async (symbol, e) => {
     e.stopPropagation();
-    const isFavorite = favorites.includes(symbol);
+    const wasFavorite = favorites.includes(symbol);
     
+    setTogglingSymbol(symbol);
+    console.log("Start toggle favorite...", { symbol, wasFavorite });
+
     // Optymistyczna aktualizacja UI
     setFavorites(prev => 
-      isFavorite ? prev.filter(s => s !== symbol) : [...prev, symbol]
+      wasFavorite ? prev.filter(s => s !== symbol) : [...prev, symbol]
     );
-    setTogglingSymbol(symbol);
 
     try {
-      console.log("Próba toggle favorite:", { symbol, isFavorite });
-      
-      // Sync z Supabase
-      const result = await toggleFavoriteApi(symbol, isFavorite);
+      const result = await toggleFavoriteApi(symbol, wasFavorite);
       
       if (!result.success) {
-        // Przywróć poprzedni stan przy błędzie
-        setFavorites(prev => 
-          isFavorite ? [...prev, symbol] : prev.filter(s => s !== symbol)
-        );
-        console.error('Toggle favorite error:', result.error);
-        alert(result.error || 'Błąd zapisu do ulubionych');
+        throw new Error(result.error || 'Błąd zapisu');
       }
-    } catch (error) {
-      console.error('Toggle favorite exception:', error);
-      alert(error.message);
+      
+      console.log("Sukces toggle favorite!");
+    } catch (err) {
+      console.error("DETALE BŁĘDU toggle:", err);
+      alert("Błąd: " + err.message);
       // Przywróć poprzedni stan
       setFavorites(prev => 
-        isFavorite ? [...prev, symbol] : prev.filter(s => s !== symbol)
+        wasFavorite ? [...prev, symbol] : prev.filter(s => s !== symbol)
       );
     } finally {
       setTogglingSymbol(null);
+      console.log("Koniec toggle favorite.");
     }
   }, [favorites]);
 

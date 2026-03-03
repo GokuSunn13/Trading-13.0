@@ -110,6 +110,12 @@ export const supabase = supabaseUrl && supabaseAnonKey
     })
   : null;
 
+// DEBUG: Udostępnij supabase w konsoli przeglądarki
+if (typeof window !== 'undefined') {
+  window.supabase = supabase;
+  console.log('🛠️ Supabase dostępny jako window.supabase');
+}
+
 // Czy Supabase jest dostępny
 export const isSupabaseConfigured = () => !!supabase;
 
