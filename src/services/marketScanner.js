@@ -31,7 +31,7 @@ const parseRR = (rrString) => {
  */
 const scanSymbol = async (symbol, budgetPLN = 50) => {
   try {
-    const klines = await fetchKlines(symbol, '1h', 100);
+    const klines = await fetchKlines(symbol, '1h', 500);
     if (!klines || klines.length < 50) return null;
 
     const analysis = analyzeMarketData(klines, symbol, {

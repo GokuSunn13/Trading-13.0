@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu, X, Bell, Wifi, WifiOff, AlertTriangle, RefreshCw, Settings, LogIn, History } from 'lucide-react';
+import { Menu, X, Bell, Wifi, WifiOff, AlertTriangle, RefreshCw, Settings, LogIn, History, BarChart3 } from 'lucide-react';
 
 // Components
 import ChartContainer from './components/ChartContainer';
@@ -13,6 +13,7 @@ import AuthModal from './components/AuthModal';
 import UserSettings from './components/UserSettings';
 import TelegramSettings from './components/TelegramSettings';
 import TradeHistory from './components/TradeHistory';
+import StatsView from './components/StatsView';
 
 // Auth
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -53,6 +54,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showTelegramSettings, setShowTelegramSettings] = useState(false);
   const [showTradeHistory, setShowTradeHistory] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [budgetPLN] = useState(50); // TODO: Add to settings UI
 
   // State - podstawowy
@@ -206,7 +208,7 @@ function App() {
       const isHealthy = await checkApiHealth();
       if (!isHealthy) throw new Error('Binance API niedostępne');
 
-      const klines = await fetchKlines(symbol, timeframe, 100);
+      const klines = await fetchKlines(symbol, timeframe, 500);
       const isScalpingInterval = ['1m', '5m'].includes(timeframe);
       let htfData = null;
       if (isScalpingInterval) {
@@ -322,6 +324,12 @@ function App() {
   // ==========================================
   // ULTRA-GLASS FULL-SCREEN TERMINAL LAYOUT
   // ==========================================
+  
+  // ========== DASHBOARD VIEW ==========
+  if (showDashboard) {
+    return <StatsView onBack={() => setShowDashboard(false)} />;
+  }
+  
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col">
       {/* Error Banner */}
@@ -438,6 +446,13 @@ function App() {
           {/* User Avatar / Login Button */}
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setShowDashboard(true)}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                title="Dashboard statystyk"
+              >
+                <BarChart3 className="w-5 h-5 text-white/60" />
+              </button>
               <button 
                 onClick={() => setShowTradeHistory(true)}
                 className="p-2 rounded-lg hover:bg-white/10 transition-colors"

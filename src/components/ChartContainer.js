@@ -168,6 +168,7 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
       },
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.1)',
+        autoScale: true,
         scaleMargins: {
           top: 0.1,
           bottom: 0.25,
