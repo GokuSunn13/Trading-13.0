@@ -148,8 +148,11 @@ export const notifyBestSetup = async (signals, budgetPLN = 50) => {
 
 /**
  * Formatuje wiadomość z informacją o budżecie
+ * @param {object} signal - Sygnał z analizy
+ * @param {number} budgetPLN - Budżet w PLN
+ * @returns {string} Sformatowana wiadomość
  */
-const formatBudgetSignalMessage = (signal, budgetPLN) => {
+export const formatBudgetSignalMessage = (signal, budgetPLN) => {
   const { symbol, tradeSetup, confidence, positionCalc } = signal;
   
   return `
@@ -230,7 +233,8 @@ const marketScanner = {
   notifyBestSetup,
   startAutoScanner,
   stopAutoScanner,
-  isScannerRunning
+  isScannerRunning,
+  formatBudgetSignalMessage
 };
 
 export default marketScanner;
