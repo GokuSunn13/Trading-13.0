@@ -217,9 +217,11 @@ export const getTradeStats = async () => {
   };
 };
 
-export default {
+const tradesService = {
   saveTrade,
   getTrades,
   updateTrade,
   getTradeStats
 };
+
+export default tradesService;

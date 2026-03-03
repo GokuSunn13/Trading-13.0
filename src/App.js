@@ -29,10 +29,8 @@ import {
 import { 
   sendTelegramAlert, 
   getTelegramSettings,
-  sendUserTelegramAlert,
   sendSignalToTelegram 
 } from './services/telegramService';
-import { saveTrade } from './services/tradesService';
 
 // Lista dostępnych instrumentów
 const SYMBOLS = BINANCE_SYMBOLS;
@@ -47,7 +45,7 @@ const ConnectionStatus = {
 
 function App() {
   // Auth state
-  const { user, profile, isAuthenticated, isConfigured } = useAuth();
+  const { user, profile, isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTelegramSettings, setShowTelegramSettings] = useState(false);

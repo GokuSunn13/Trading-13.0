@@ -14,7 +14,6 @@ import {
   AlertCircle,
   Bell,
   LogOut,
-  ChevronRight,
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
