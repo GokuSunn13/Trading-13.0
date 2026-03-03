@@ -165,6 +165,8 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
         borderColor: 'rgba(255, 255, 255, 0.1)',
         timeVisible: true,
         secondsVisible: true,
+        shiftVisibleRangeOnNewBar: true,
+        rightOffset: 10,
       },
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.1)',
@@ -657,7 +659,7 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
           </div>
         )}
 
-        {/* Chart container - przezroczyste tło */}
+        {/* Chart container - przezroczyste tło z pointer-events */}
         <div 
           ref={chartContainerRef} 
           className={`w-full ${isFullscreen ? 'h-[calc(100%-100px)]' : 'h-[500px]'}`}
@@ -665,6 +667,9 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
             background: 'transparent',
             minHeight: '500px',
             cursor: activeTool ? 'crosshair' : 'default',
+            position: 'relative',
+            zIndex: 1,
+            pointerEvents: 'auto',
           }}
         />
       </div>

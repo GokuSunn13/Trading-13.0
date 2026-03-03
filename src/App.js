@@ -208,7 +208,7 @@ function App() {
       const isHealthy = await checkApiHealth();
       if (!isHealthy) throw new Error('Binance API niedostępne');
 
-      const klines = await fetchKlines(symbol, timeframe, 500);
+      const klines = await fetchKlines(symbol, timeframe, 1000);
       const isScalpingInterval = ['1m', '5m'].includes(timeframe);
       let htfData = null;
       if (isScalpingInterval) {

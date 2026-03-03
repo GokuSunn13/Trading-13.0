@@ -31,8 +31,11 @@ const TelegramSettings = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (!chatId.trim()) {
-      setMessage({ type: 'error', text: 'Wpisz Chat ID' });
+    const trimmedId = chatId.trim();
+    
+    // Walidacja: akceptuj liczby dodatnie i ujemne (grupy zaczynają się od -)
+    if (!trimmedId || !/^-?\d+$/.test(trimmedId)) {
+      setMessage({ type: 'error', text: 'Chat ID musi być liczbą (np. 123456789 lub -100123456789)' });
       return;
     }
 
@@ -44,7 +47,7 @@ const TelegramSettings = ({ isOpen, onClose }) => {
         .from('profiles')
         .upsert({
           id: user.id,
-          telegram_chat_id: chatId.trim(),
+          telegram_chat_id: trimmedId.toString(), // Zawsze jako string
           telegram_enabled: true,
           updated_at: new Date().toISOString()
         });
