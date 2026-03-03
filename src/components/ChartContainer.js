@@ -457,11 +457,12 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
   }, []);
 
   return (
-    <div className={`ultra-glass rounded-2xl overflow-hidden transition-all duration-300 ${
+    <div className={`ultra-glass rounded-2xl transition-all duration-300 ${
       isFullscreen ? 'fixed inset-4 z-50' : 'h-full'
     }`}
     style={{
       fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
+      overflow: 'visible', // Allow price scale interactions
     }}>
       {/* Header - bez traffic light buttons */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10"
@@ -565,7 +566,7 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
       </div>
 
       {/* Chart wrapper z paskiem narzędzi */}
-      <div className="relative flex">
+      <div className="relative flex" style={{ overflow: 'visible' }}>
         {/* Drawing Toolbar - lewy pasek narzędzi Glassmorphism */}
         <div className="absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-xl p-1.5"
              style={{ 
@@ -668,10 +669,11 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
           style={{ 
             background: 'transparent',
             minHeight: '500px',
-            cursor: activeTool ? 'crosshair' : 'default',
+            cursor: activeTool ? 'crosshair' : 'grab',
             position: 'relative',
-            zIndex: 1,
+            zIndex: 5,
             pointerEvents: 'auto',
+            touchAction: 'pan-x pan-y pinch-zoom',
           }}
         />
       </div>
