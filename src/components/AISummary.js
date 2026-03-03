@@ -13,7 +13,8 @@ import {
   Activity,
   Target,
   Clock,
-  Info
+  Info,
+  BarChart3
 } from 'lucide-react';
 
 // Skeleton Loader Component - subtelny loading wewnątrz panelu
@@ -218,6 +219,61 @@ const AISummary = memo(({ analysis, isLoading }) => {
               </div>
             </div>
 
+            {/* Volume Status - NEW */}
+            {analysis.volumeAnalysis && (
+              <div className="glass-card rounded-xl p-4">
+                <h3 className="text-sm text-gray-400 mb-3 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  Status Wolumenu
+                </h3>
+                <div className={`flex items-center gap-3 ${
+                  analysis.volumeAnalysis.statusCode === 'panic_selling' ? 'text-red-400' :
+                  analysis.volumeAnalysis.statusCode === 'accumulation' ? 'text-green-400' :
+                  analysis.volumeAnalysis.statusCode === 'distribution' ? 'text-orange-400' :
+                  analysis.volumeAnalysis.statusCode === 'low_activity' ? 'text-gray-400' : 'text-blue-400'
+                }`}>
+                  <div className={`p-2 rounded-lg ${
+                    analysis.volumeAnalysis.statusCode === 'panic_selling' ? 'bg-red-500/20' :
+                    analysis.volumeAnalysis.statusCode === 'accumulation' ? 'bg-green-500/20' :
+                    analysis.volumeAnalysis.statusCode === 'distribution' ? 'bg-orange-500/20' :
+                    analysis.volumeAnalysis.statusCode === 'low_activity' ? 'bg-gray-500/20' : 'bg-blue-500/20'
+                  }`}>
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-lg font-semibold block">{analysis.volumeAnalysis.status}</span>
+                    <span className="text-xs text-gray-500">
+                      {Math.round(analysis.volumeAnalysis.ratio * 100)}% średniej
+                      {analysis.volumeAnalysis.isConfirmed && ' • ✓ Potwierdzony'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-3 leading-relaxed">
+                  {analysis.volumeAnalysis.description}
+                </p>
+              </div>
+            )}
+
+            {/* SMA50 Warning */}
+            {analysis.sma50Warning && (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm text-yellow-300">{analysis.sma50Warning}</span>
+                </div>
+              </div>
+            )}
+
+            {/* MTF Warning */}
+            {analysis.mtfAnalysis?.warning && (
+              <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm text-orange-300">{analysis.mtfAnalysis.warning}</span>
+                </div>
+              </div>
+            )}
+
             {/* Rationale */}
             <div className="glass-card rounded-xl p-4">
               <h3 className="text-sm text-gray-400 mb-3 flex items-center gap-2">
@@ -286,19 +342,29 @@ const AISummary = memo(({ analysis, isLoading }) => {
                   Sygnały
                 </h3>
                 <div className="space-y-2">
-                  {analysis.signals.slice(0, 5).map((signal, index) => (
+                  {analysis.signals.slice(0, 6).map((signal, index) => (
                     <div 
                       key={index}
                       className={`flex items-center gap-2 p-2 rounded-lg text-sm ${
-                        signal.type === 'bullish' ? 'bg-green-500/10' : 'bg-red-500/10'
+                        signal.type === 'bullish' ? 'bg-green-500/10' : 
+                        signal.type === 'bearish' ? 'bg-red-500/10' :
+                        signal.type === 'critical' ? 'bg-red-500/20 border border-red-500/30' :
+                        signal.type === 'warning' ? 'bg-yellow-500/10' : 'bg-gray-500/10'
                       }`}
                     >
                       {signal.type === 'bullish' ? (
                         <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      ) : signal.type === 'critical' ? (
+                        <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 animate-pulse" />
+                      ) : signal.type === 'warning' ? (
+                        <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
                       ) : (
                         <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
                       )}
-                      <span className="text-gray-300">{signal.description}</span>
+                      <span className={`${
+                        signal.type === 'critical' ? 'text-red-300 font-medium' :
+                        signal.type === 'warning' ? 'text-yellow-300' : 'text-gray-300'
+                      }`}>{signal.description}</span>
                     </div>
                   ))}
                 </div>
