@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 const BOT_TOKEN = process.env.REACT_APP_TELEGRAM_BOT_TOKEN;
 
 const TelegramSettings = ({ isOpen, onClose }) => {
-  const { user, profile, updateProfile } = useAuth();
+  const { profile, updateProfile } = useAuth();
   const [chatId, setChatId] = useState('');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
