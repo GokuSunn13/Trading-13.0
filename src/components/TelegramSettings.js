@@ -31,10 +31,11 @@ const TelegramSettings = ({ isOpen, onClose }) => {
       return;
     }
 
-    const trimmedId = chatId.trim();
+    // Konwersja na String i trim - bez walidacji formatu
+    const telegramId = String(chatId).trim();
     
-    // Walidacja: tylko sprawdź czy nie jest puste
-    if (!trimmedId) {
+    // Jedyna walidacja: nie może być puste
+    if (!telegramId) {
       setMessage({ type: 'error', text: 'Wpisz Chat ID' });
       return;
     }
@@ -43,8 +44,7 @@ const TelegramSettings = ({ isOpen, onClose }) => {
     setMessage(null);
 
     // Debug log - widoczny w konsoli F12
-    const telegramId = String(trimmedId);
-    console.log("Wysyłane ID:", telegramId);
+    console.log("Wysyłane ID (TelegramSettings):", telegramId);
 
     try {
       const { error } = await supabase

@@ -44,10 +44,13 @@ const UserSettings = ({ isOpen, onClose }) => {
     setIsSaving(true);
     setSaveStatus(null);
 
+    const chatIdValue = String(telegramChatId).trim();
+    console.log("Wysyłane ID (UserSettings):", chatIdValue);
+
     const result = await updateProfile({
-      telegram_chat_id: telegramChatId,
+      telegram_chat_id: chatIdValue,
       auto_send_signals: autoSendSignals,
-      telegram_enabled: telegramEnabled && !!telegramChatId
+      telegram_enabled: telegramEnabled && !!chatIdValue
     });
 
     setSaveStatus(result.success ? 'success' : 'error');
