@@ -1,9 +1,19 @@
 /**
  * Telegram Notification Service
  * Wysyła powiadomienia o sygnałach tradingowych przez Telegram Bot API
+ * 
+ * Obsługuje:
+ * - Pobieranie Chat ID z profilu użytkownika (Supabase)
+ * - Fallback do localStorage
+ * - Automatyczne wysyłanie sygnałów
  */
 
+import { supabase } from '../lib/supabase';
+
 const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
+
+// Bot Token z zmiennych środowiskowych (wspólny dla wszystkich)
+const BOT_TOKEN = process.env.REACT_APP_TELEGRAM_BOT_TOKEN;
 
 /**
  * Formatowanie ceny z odpowiednią precyzją
@@ -174,4 +184,69 @@ export const saveTelegramSettings = (settings) => {
   } catch {
     return false;
   }
+};
+
+/**
+ * Pobiera ustawienia Telegram z profilu użytkownika (Supabase)
+ * Fallback do localStorage jeśli Supabase nie jest dostępny
+ */
+export const getUserTelegramSettings = async () => {
+  if (!supabase) {
+    return getTelegramSettings();
+  }
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return getTelegramSettings();
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('telegram_chat_id, telegram_enabled, auto_send_signals')
+      .eq('id', user.id)
+      .single();
+
+    if (error || !profile) {
+      return getTelegramSettings();
+    }
+
+    return {
+      botToken: BOT_TOKEN || getTelegramSettings().botToken,
+      chatId: profile.telegram_chat_id || '',
+      enabled: profile.telegram_enabled || false,
+      autoSend: profile.auto_send_signals || false
+    };
+  } catch (err) {
+    console.error('Error getting user telegram settings:', err);
+    return getTelegramSettings();
+  }
+};
+
+/**
+ * Wysyła alert używając ustawień z profilu użytkownika
+ * @param {object} alertData - Dane alertu
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export const sendUserTelegramAlert = async (alertData) => {
+  const settings = await getUserTelegramSettings();
+  
+  if (!settings.enabled || !settings.chatId) {
+    return { success: false, message: 'Telegram nie jest skonfigurowany' };
+  }
+
+  const botToken = settings.botToken || BOT_TOKEN;
+  if (!botToken) {
+    return { success: false, message: 'Brak Bot Token' };
+  }
+
+  return sendTelegramAlert(botToken, settings.chatId, alertData);
+};
+
+/**
+ * Sprawdza czy auto-wysyłka jest włączona dla użytkownika
+ */
+export const isAutoSendEnabled = async () => {
+  const settings = await getUserTelegramSettings();
+  return settings.enabled && settings.autoSend && settings.chatId;
 };

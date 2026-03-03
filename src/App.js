@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu, X, Bell, User, Wifi, WifiOff, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Menu, X, Bell, Wifi, WifiOff, AlertTriangle, RefreshCw, Settings, LogIn } from 'lucide-react';
 
 // Components
 import ChartContainer from './components/ChartContainer';
@@ -9,6 +9,11 @@ import ControlPanel from './components/ControlPanel';
 import SymbolSearch from './components/SymbolSearch';
 import TradingViewWidget from './components/TradingViewWidget';
 import TradeSetupPanel from './components/TradeSetupPanel';
+import AuthModal from './components/AuthModal';
+import UserSettings from './components/UserSettings';
+
+// Auth
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Utils & Services
 import { analyzeMarketData } from './utils/analyzeMarketData';
@@ -22,8 +27,10 @@ import {
 } from './services/binanceApi';
 import { 
   sendTelegramAlert, 
-  getTelegramSettings 
+  getTelegramSettings,
+  sendUserTelegramAlert 
 } from './services/telegramService';
+import { saveTrade } from './services/tradesService';
 
 // Lista dostępnych instrumentów
 const SYMBOLS = BINANCE_SYMBOLS;
@@ -37,6 +44,11 @@ const ConnectionStatus = {
 };
 
 function App() {
+  // Auth state
+  const { user, profile, isAuthenticated, isConfigured } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
   // State - podstawowy
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
   const [marketData, setMarketData] = useState({});
@@ -406,9 +418,46 @@ function App() {
             <Bell className="w-5 h-5 text-white/60" />
             <span className="absolute top-1 right-1 w-2 h-2 bg-[#007AFF] rounded-full live-indicator"></span>
           </button>
-          <button className="p-2 rounded-lg hover:bg-white/10 transition-colors">
-            <User className="w-5 h-5 text-white/60" />
-          </button>
+          
+          {/* User Avatar / Login Button */}
+          {isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                title="Ustawienia"
+              >
+                <Settings className="w-5 h-5 text-white/60" />
+              </button>
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                {user?.user_metadata?.avatar_url ? (
+                  <img 
+                    src={user.user_metadata.avatar_url} 
+                    alt="Avatar" 
+                    className="w-8 h-8 rounded-full ring-2 ring-white/20"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ring-2 ring-white/20">
+                    <span className="text-white font-bold text-sm">
+                      {user?.email?.[0]?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                )}
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setShowAuthModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all text-white text-sm font-medium"
+            >
+              <LogIn className="w-4 h-4" />
+              <span className="hidden sm:inline">Zaloguj</span>
+            </button>
+          )}
+
           <button onClick={() => setRightPanelOpen(!rightPanelOpen)}
             className="lg:hidden p-2 rounded-lg hover:bg-white/10 transition-colors">
             <span className={`text-xs font-medium ${rightPanelOpen ? 'text-[#007AFF]' : 'text-white/60'}`}>AI</span>
@@ -577,6 +626,16 @@ function App() {
           <span className="hidden sm:inline font-mono">{new Date().toLocaleTimeString('pl-PL')}</span>
         </div>
       </footer>
+
+      {/* ========== MODALS ========== */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
+      <UserSettings 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
+      />
     </div>
   );
 }
@@ -610,4 +669,11 @@ const QuickStat = ({ label, value, trend }) => {
   );
 };
 
-export default App;
+// Wrap App with AuthProvider
+const AppWithAuth = () => (
+  <AuthProvider>
+    <App />
+  </AuthProvider>
+);
+
+export default AppWithAuth;
