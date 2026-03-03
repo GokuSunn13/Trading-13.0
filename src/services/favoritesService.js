@@ -126,13 +126,15 @@ export const addFavorite = async (symbol) => {
 
     if (error && !error.message.includes('duplicate')) {
       console.error('Error adding favorite:', error);
-      return { success: false, error: error.message };
+      // localStorage już zaktualizowany, więc zwracamy success
+      return { success: true, warning: 'Zapisano lokalnie, sync z chmurą nie powiódł się' };
     }
 
     return { success: true };
   } catch (err) {
     console.error('Error in addFavorite:', err);
-    return { success: false, error: err.message };
+    // localStorage już zaktualizowany na początku funkcji
+    return { success: true, warning: 'Zapisano lokalnie (timeout sync z chmurą)' };
   }
 };
 
@@ -168,13 +170,15 @@ export const removeFavorite = async (symbol) => {
 
     if (error) {
       console.error('Error removing favorite:', error);
-      return { success: false, error: error.message };
+      // localStorage już zaktualizowany, więc zwracamy success
+      return { success: true, warning: 'Usunięto lokalnie, sync z chmurą nie powiódł się' };
     }
 
     return { success: true };
   } catch (err) {
     console.error('Error in removeFavorite:', err);
-    return { success: false, error: err.message };
+    // localStorage już zaktualizowany na początku funkcji
+    return { success: true, warning: 'Usunięto lokalnie (timeout sync z chmurą)' };
   }
 };
 

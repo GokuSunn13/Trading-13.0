@@ -47,11 +47,15 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
         throw new Error(result.error || 'Błąd zapisu');
       }
       
+      // Opcjonalne ostrzeżenie gdy był problem z sync (ale dane zapisane lokalnie)
+      if (result.warning) {
+        console.warn("Toggle favorite warning:", result.warning);
+      }
+      
       console.log("Sukces toggle favorite!");
     } catch (err) {
       console.error("DETALE BŁĘDU toggle:", err);
-      alert("Błąd: " + err.message);
-      // Przywróć poprzedni stan
+      // Przywróć poprzedni stan tylko przy rzeczywistym błędzie
       setFavorites(prev => 
         wasFavorite ? [...prev, symbol] : prev.filter(s => s !== symbol)
       );

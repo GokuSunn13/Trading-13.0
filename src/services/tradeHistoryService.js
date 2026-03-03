@@ -184,13 +184,15 @@ export const enterTrade = async (tradeData) => {
 
     if (error) {
       console.error('Error entering trade:', error);
-      return { success: false, error: error.message, trade };
+      // localStorage już zaktualizowany, więc zwracamy success z lokalnym trade
+      return { success: true, trade, warning: 'Zapisano lokalnie, sync z chmurą nie powiódł się' };
     }
 
     return { success: true, trade: data };
   } catch (err) {
     console.error('Error in enterTrade:', err);
-    return { success: false, error: err.message, trade };
+    // localStorage już zaktualizowany na początku funkcji
+    return { success: true, trade, warning: 'Zapisano lokalnie (timeout sync z chmurą)' };
   }
 };
 

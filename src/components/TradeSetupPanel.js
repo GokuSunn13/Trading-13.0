@@ -146,12 +146,14 @@ const TradeSetupPanel = ({
       }
       
       setEnterStatus('success');
-      alert("Sukces! Trade zapisany.");
+      // Pokaż ostrzeżenie jeśli był problem z sync (ale dane zapisane lokalnie)
+      if (result?.warning) {
+        console.warn("Trade warning:", result.warning);
+      }
       setTimeout(() => setEnterStatus(null), 3000);
     } catch (err) {
       console.error("DETALE BŁĘDU trade:", err);
       setEnterStatus('error');
-      alert("Błąd: " + err.message);
       setTimeout(() => setEnterStatus(null), 3000);
     } finally {
       setIsEntering(false);
