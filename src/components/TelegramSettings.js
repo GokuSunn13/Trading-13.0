@@ -24,13 +24,18 @@ const TelegramSettings = ({ isOpen, onClose }) => {
     }
   }, [profile]);
 
-  // Zapisz Chat ID do Supabase - BEZ WALIDACJI
+  // Zapisz Chat ID do Supabase - SAFETY PATTERN z wczesnym wyjściem
   const handleSave = async () => {
     setSaving(true);
     setMessage(null);
     console.log("Start zapisu Chat ID...");
 
     try {
+      // Wczesne wyjście jeśli Supabase nie jest skonfigurowany
+      if (!supabase) {
+        throw new Error("Supabase nie jest skonfigurowany. Sprawdź zmienne środowiskowe.");
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Musisz być zalogowany!");
 

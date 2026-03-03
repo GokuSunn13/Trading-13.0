@@ -39,29 +39,42 @@ const UserSettings = ({ isOpen, onClose }) => {
     }
   }, [profile]);
 
-  // Zapisz ustawienia
+  // Zapisz ustawienia - SAFETY PATTERN z finally
   const handleSave = async () => {
     setIsSaving(true);
     setSaveStatus(null);
 
-    const chatIdValue = String(telegramChatId).trim();
-    console.log("Wysyłane ID (UserSettings):", chatIdValue);
+    try {
+      if (!updateProfile) {
+        throw new Error('Brak funkcji updateProfile - Supabase nie skonfigurowany');
+      }
 
-    const result = await updateProfile({
-      telegram_chat_id: chatIdValue,
-      auto_send_signals: autoSendSignals,
-      telegram_enabled: telegramEnabled && !!chatIdValue
-    });
+      const chatIdValue = String(telegramChatId).trim();
+      console.log("Wysyłane ID (UserSettings):", chatIdValue);
 
-    setSaveStatus(result.success ? 'success' : 'error');
-    setIsSaving(false);
+      const result = await updateProfile({
+        telegram_chat_id: chatIdValue,
+        auto_send_signals: autoSendSignals,
+        telegram_enabled: telegramEnabled && !!chatIdValue
+      });
 
-    if (result.success) {
+      if (!result.success) {
+        throw new Error(result.error || 'Błąd zapisu ustawień');
+      }
+
+      setSaveStatus('success');
       setTimeout(() => setSaveStatus(null), 3000);
+    } catch (err) {
+      console.error("BŁĄD zapisu ustawień:", err);
+      setSaveStatus('error');
+      alert("Błąd: " + err.message);
+    } finally {
+      setIsSaving(false);
+      console.log("Koniec zapisu ustawień.");
     }
   };
 
-  // Testuj połączenie Telegram
+  // Testuj połączenie Telegram - SAFETY PATTERN
   const handleTestTelegram = async () => {
     if (!telegramChatId) {
       setTestStatus({ success: false, message: 'Wprowadź Chat ID' });
@@ -71,19 +84,24 @@ const UserSettings = ({ isOpen, onClose }) => {
     setIsTesting(true);
     setTestStatus(null);
 
-    // Używamy bot token z env lub localStorage
-    const botToken = process.env.REACT_APP_TELEGRAM_BOT_TOKEN || 
-                    JSON.parse(localStorage.getItem('telegramSettings') || '{}').botToken;
+    try {
+      // Używamy bot token z env lub localStorage
+      const botToken = process.env.REACT_APP_TELEGRAM_BOT_TOKEN || 
+                      JSON.parse(localStorage.getItem('telegramSettings') || '{}').botToken;
 
-    if (!botToken) {
-      setTestStatus({ success: false, message: 'Brak Bot Token. Skonfiguruj w zmiennych środowiskowych.' });
+      if (!botToken) {
+        throw new Error('Brak Bot Token. Skonfiguruj w zmiennych środowiskowych.');
+      }
+
+      const result = await testTelegramConnection(botToken, telegramChatId);
+      setTestStatus(result);
+    } catch (err) {
+      console.error("BŁĄD testu Telegram:", err);
+      setTestStatus({ success: false, message: err.message });
+    } finally {
       setIsTesting(false);
-      return;
+      console.log("Koniec testu Telegram.");
     }
-
-    const result = await testTelegramConnection(botToken, telegramChatId);
-    setTestStatus(result);
-    setIsTesting(false);
   };
 
   if (!isOpen) return null;
