@@ -123,6 +123,18 @@ if (supabaseUrl && supabaseAnonKey) {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true
+      },
+      // Wyłącz realtime - może powodować timeout
+      realtime: {
+        params: {
+          eventsPerSecond: 0
+        }
+      },
+      // Dodatkowe opcje dla stabilności
+      global: {
+        headers: {
+          'X-Client-Info': 'ai-trading-analyzer'
+        }
       }
     });
     console.log('✅ Supabase client utworzony pomyślnie');
