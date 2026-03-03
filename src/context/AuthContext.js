@@ -5,10 +5,9 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { withTimeout } from '../lib/supabaseHelpers';
+import { getProfileRest, updateProfileRest } from '../lib/supabaseRest';
 
 const AuthContext = createContext({});
-const TIMEOUT_MS = 8000;
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -24,47 +23,36 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Pobierz profil użytkownika
+  // Pobierz profil użytkownika - używa REST API
   const fetchProfile = useCallback(async (userId) => {
-    if (!supabase || !userId) return null;
+    if (!userId) return null;
     
     try {
-      const { data, error } = await withTimeout(
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single(),
-        TIMEOUT_MS
-      );
+      // Użyj REST API zamiast SDK
+      const data = await getProfileRest(userId);
       
-      if (error) throw error;
-      setProfile(data);
-      return data;
+      if (data) {
+        setProfile(data);
+        return data;
+      }
+      return null;
     } catch (err) {
       console.error('Error fetching profile:', err);
       return null;
     }
   }, []);
 
-  // Aktualizuj profil
+  // Aktualizuj profil - używa REST API
   const updateProfile = useCallback(async (updates) => {
-    if (!supabase || !user) return { success: false, error: 'Not authenticated' };
+    if (!user) return { success: false, error: 'Not authenticated' };
     
     try {
-      const { data, error } = await withTimeout(
-        supabase
-          .from('profiles')
-          .update({ ...updates, updated_at: new Date().toISOString() })
-          .eq('id', user.id)
-          .select()
-          .single(),
-        TIMEOUT_MS
-      );
+      const result = await updateProfileRest(user.id, updates);
       
-      if (error) throw error;
-      setProfile(data);
-      return { success: true, data };
+      if (result.success && result.data) {
+        setProfile(result.data);
+      }
+      return result;
     } catch (err) {
       console.error('Error updating profile:', err);
       return { success: false, error: err.message };

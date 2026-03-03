@@ -152,6 +152,45 @@ export const getProfileRest = async (userId) => {
 };
 
 /**
+ * Aktualizuje profil użytkownika
+ */
+export const updateProfileRest = async (userId, updates) => {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    return { success: false, error: 'Not configured' };
+  }
+
+  try {
+    const accessToken = getAccessToken();
+    const url = `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`;
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${accessToken || SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data: data[0] };
+  } catch (err) {
+    console.error('updateProfileRest error:', err);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
  * Zapisuje trade
  */
 export const saveTradeRest = async (tradeData) => {
