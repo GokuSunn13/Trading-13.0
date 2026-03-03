@@ -28,7 +28,8 @@ import {
 import { 
   sendTelegramAlert, 
   getTelegramSettings,
-  sendUserTelegramAlert 
+  sendUserTelegramAlert,
+  sendSignalToTelegram 
 } from './services/telegramService';
 import { saveTrade } from './services/tradesService';
 
@@ -74,35 +75,25 @@ function App() {
   const lastAnalyzedCandleTimeRef = useRef(null);
   const lastAlertCandleTimeRef = useRef(null);
 
-  // Funkcja wysyłająca powiadomienie Telegram
+  // Funkcja wysyłająca powiadomienie Telegram (z Supabase profiles)
   const sendTelegramNotification = useCallback(async (result, symbol, interval, candleTime) => {
+    // Zapobiegnij duplikatom dla tej samej świecy
     if (lastAlertCandleTimeRef.current === candleTime) return;
-    if (!result || result.confidence <= 80 || !result.tradeSetup) return;
-
-    const telegramSettings = getTelegramSettings();
-    if (!telegramSettings.enabled || !telegramSettings.botToken || !telegramSettings.chatId) return;
-
-    const alertData = {
-      symbol,
-      interval,
-      direction: result.tradeSetup.direction,
-      confidence: result.confidence,
-      entry: result.tradeSetup.entry,
-      stopLoss: result.tradeSetup.stopLoss,
-      takeProfit: result.tradeSetup.takeProfit,
-      slPercent: result.tradeSetup.slPercent,
-      tpPercent: result.tradeSetup.tpPercent,
-      riskReward: result.tradeSetup.riskReward
-    };
-
-    const response = await sendTelegramAlert(
-      telegramSettings.botToken,
-      telegramSettings.chatId,
-      alertData
+    
+    // Używamy nowej funkcji sendSignalToTelegram która:
+    // 1. Sprawdza confidence > 75%
+    // 2. Pobiera chat_id z Supabase profiles (telegram_chat_id)
+    // 3. Sprawdza czy auto_send_signals jest włączony
+    // 4. Wysyła sformatowany sygnał z linkiem do Vercel
+    const response = await sendSignalToTelegram(
+      result, 
+      interval, 
+      'https://trading-13-0.vercel.app' // Link do Twojej strony na Vercel
     );
 
-    if (response.success) {
+    if (response.sent) {
       lastAlertCandleTimeRef.current = candleTime;
+      console.log(`🔔 Telegram signal sent: ${symbol} ${result.tradeSetup?.direction}`);
     }
   }, []);
 

@@ -250,3 +250,139 @@ export const isAutoSendEnabled = async () => {
   const settings = await getUserTelegramSettings();
   return settings.enabled && settings.autoSend && settings.chatId;
 };
+
+/**
+ * GŁÓWNA FUNKCJA: Wysyła sygnał tradingowy na Telegram
+ * 
+ * Pobiera chat_id z tabeli profiles w Supabase (kolumna telegram_chat_id)
+ * Wysyła tylko gdy confidence > 75%
+ * 
+ * @param {object} analysisResult - Wynik analizy z analyzeMarketData
+ * @param {string} interval - Interwał czasowy (np. "15m", "1h")
+ * @param {string} vercelUrl - Link do strony na Vercel
+ * @returns {Promise<{success: boolean, message: string, sent: boolean}>}
+ */
+export const sendSignalToTelegram = async (analysisResult, interval = '15m', vercelUrl = 'https://trading-13-0.vercel.app') => {
+  // 1. Sprawdź minimalny confidence (75%)
+  if (!analysisResult || analysisResult.confidence < 75) {
+    return { 
+      success: false, 
+      sent: false,
+      message: `Confidence ${analysisResult?.confidence || 0}% jest poniżej progu 75%` 
+    };
+  }
+
+  // 2. Sprawdź czy mamy kierunek (LONG/SHORT)
+  const tradeSetup = analysisResult.tradeSetup;
+  if (!tradeSetup) {
+    return { 
+      success: false, 
+      sent: false,
+      message: 'Brak wygenerowanego Trade Setup' 
+    };
+  }
+
+  // 3. Pobierz ustawienia użytkownika z Supabase
+  const settings = await getUserTelegramSettings();
+  
+  if (!settings.enabled || !settings.chatId) {
+    return { 
+      success: false, 
+      sent: false,
+      message: 'Telegram nie jest skonfigurowany lub wyłączony' 
+    };
+  }
+
+  if (!settings.autoSend) {
+    return { 
+      success: false, 
+      sent: false,
+      message: 'Auto-wysyłka sygnałów jest wyłączona' 
+    };
+  }
+
+  const botToken = settings.botToken || BOT_TOKEN;
+  if (!botToken) {
+    return { 
+      success: false, 
+      sent: false,
+      message: 'Brak Bot Token' 
+    };
+  }
+
+  // 4. Przygotuj dane sygnału
+  const direction = tradeSetup.direction.toUpperCase(); // LONG lub SHORT
+  const directionEmoji = direction === 'LONG' ? '🟢' : '🔴';
+  const trendArrow = direction === 'LONG' ? '📈' : '📉';
+
+  const formatPrice = (price) => {
+    if (!price) return '--';
+    const symbol = analysisResult.symbol;
+    const isLowPrice = symbol?.includes('DOGE') || symbol?.includes('XRP') || symbol?.includes('ADA') || symbol?.includes('SHIB');
+    return isLowPrice ? price.toFixed(6) : price.toFixed(2);
+  };
+
+  // 5. Sformatuj wiadomość
+  const message = `
+${directionEmoji} *AI SIGNAL - ${analysisResult.symbol}* ${trendArrow}
+
+📊 *Interwał:* \`${interval}\`
+🎯 *Kierunek:* *${direction}*
+📈 *Confidence:* *${analysisResult.confidence}%* ${analysisResult.confidence >= 85 ? '🔥' : '✨'}
+
+💰 *Trade Setup:*
+├ 🎯 Entry: \`$${formatPrice(tradeSetup.entry)}\`
+├ 🛑 Stop Loss: \`$${formatPrice(tradeSetup.stopLoss)}\` (${tradeSetup.slPercent?.toFixed(2)}%)
+├ ✅ Take Profit: \`$${formatPrice(tradeSetup.takeProfit)}\` (+${tradeSetup.tpPercent?.toFixed(2)}%)
+└ ⚖️ R/R: \`${tradeSetup.riskReward}\`
+
+${tradeSetup.sma50Warning ? `\n${tradeSetup.sma50Warning}\n` : ''}${tradeSetup.mtfWarning ? `${tradeSetup.mtfWarning}\n` : ''}
+🔗 [Otwórz AI Trading Terminal](${vercelUrl})
+
+⏰ _${new Date().toLocaleString('pl-PL')}_
+🤖 _AI Trading Analyzer v2.0_
+`.trim();
+
+  // 6. Wyślij wiadomość
+  const url = `${TELEGRAM_API_URL}${botToken}/sendMessage`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: settings.chatId,
+        text: message,
+        parse_mode: 'Markdown',
+        disable_web_page_preview: false
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.ok) {
+      console.log(`✅ Signal sent to Telegram: ${analysisResult.symbol} ${direction} @ ${analysisResult.confidence}%`);
+      return { 
+        success: true, 
+        sent: true,
+        message: `Sygnał wysłany! ${analysisResult.symbol} ${direction}` 
+      };
+    } else {
+      console.error('Telegram API error:', data);
+      return { 
+        success: false, 
+        sent: false,
+        message: data.description || 'Błąd wysyłania sygnału' 
+      };
+    }
+  } catch (error) {
+    console.error('Telegram send error:', error);
+    return { 
+      success: false, 
+      sent: false,
+      message: `Błąd połączenia: ${error.message}` 
+    };
+  }
+};
