@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, memo } from 'react';
-import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
+import { createChart, ColorType, CrosshairMode, PriceScaleMode } from 'lightweight-charts';
 import { Maximize2, Minimize2, ZoomIn, ZoomOut, RefreshCw, Radio, Minus, Square, Type, TrendingUp, Trash2, Circle, Clock } from 'lucide-react';
 
 // Throttle helper - ogranicza wywołania funkcji
@@ -171,6 +171,7 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.1)',
         autoScale: true,
+        mode: PriceScaleMode.Normal,
         scaleMargins: {
           top: 0.1,
           bottom: 0.25,
@@ -184,6 +185,7 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
       },
       handleScale: {
         axisPressedMouseMove: true,
+        axisDoubleClickReset: true,
         mouseWheel: true,
         pinch: true,
       },
