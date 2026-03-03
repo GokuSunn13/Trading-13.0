@@ -9,8 +9,10 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { withTimeout } from '../lib/supabaseHelpers';
 
 const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
+const TIMEOUT_MS = 5000; // 5 sekund timeout dla Telegram
 
 // Bot Token z zmiennych środowiskowych (wspólny dla wszystkich)
 const BOT_TOKEN = process.env.REACT_APP_TELEGRAM_BOT_TOKEN;
@@ -196,16 +198,19 @@ export const getUserTelegramSettings = async () => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
     if (!user) {
       return getTelegramSettings();
     }
 
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('telegram_chat_id, telegram_enabled, auto_send_signals')
-      .eq('id', user.id)
-      .single();
+    const { data: profile, error } = await withTimeout(
+      supabase
+        .from('profiles')
+        .select('telegram_chat_id, telegram_enabled, auto_send_signals')
+        .eq('id', user.id)
+        .single(),
+      TIMEOUT_MS
+    );
 
     if (error || !profile) {
       return getTelegramSettings();

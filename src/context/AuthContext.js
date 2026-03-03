@@ -5,8 +5,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { withTimeout } from '../lib/supabaseHelpers';
 
 const AuthContext = createContext({});
+const TIMEOUT_MS = 8000;
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -27,11 +29,14 @@ export const AuthProvider = ({ children }) => {
     if (!supabase || !userId) return null;
     
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const { data, error } = await withTimeout(
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       setProfile(data);
@@ -47,12 +52,15 @@ export const AuthProvider = ({ children }) => {
     if (!supabase || !user) return { success: false, error: 'Not authenticated' };
     
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', user.id)
-        .select()
-        .single();
+      const { data, error } = await withTimeout(
+        supabase
+          .from('profiles')
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('id', user.id)
+          .select()
+          .single(),
+        TIMEOUT_MS
+      );
       
       if (error) throw error;
       setProfile(data);
