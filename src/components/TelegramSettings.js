@@ -33,21 +33,25 @@ const TelegramSettings = ({ isOpen, onClose }) => {
 
     const trimmedId = chatId.trim();
     
-    // Walidacja: akceptuj liczby dodatnie i ujemne (grupy zaczynają się od -)
-    if (!trimmedId || !/^-?\d+$/.test(trimmedId)) {
-      setMessage({ type: 'error', text: 'Chat ID musi być liczbą (np. 123456789 lub -100123456789)' });
+    // Walidacja: tylko sprawdź czy nie jest puste
+    if (!trimmedId) {
+      setMessage({ type: 'error', text: 'Wpisz Chat ID' });
       return;
     }
 
     setSaving(true);
     setMessage(null);
 
+    // Debug log - widoczny w konsoli F12
+    const telegramId = String(trimmedId);
+    console.log("Wysyłane ID:", telegramId);
+
     try {
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
-          telegram_chat_id: trimmedId.toString(), // Zawsze jako string
+          telegram_chat_id: telegramId,
           telegram_enabled: true,
           updated_at: new Date().toISOString()
         });
@@ -56,7 +60,7 @@ const TelegramSettings = ({ isOpen, onClose }) => {
 
       // Zaktualizuj lokalny profil
       if (updateProfile) {
-        await updateProfile({ telegram_chat_id: chatId.trim(), telegram_enabled: true });
+        await updateProfile({ telegram_chat_id: telegramId, telegram_enabled: true });
       }
 
       setMessage({ type: 'success', text: 'Chat ID zapisany!' });
