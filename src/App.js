@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu, X, Bell, Wifi, WifiOff, AlertTriangle, RefreshCw, Settings, LogIn } from 'lucide-react';
+import { Menu, X, Bell, Wifi, WifiOff, AlertTriangle, RefreshCw, Settings, LogIn, History } from 'lucide-react';
 
 // Components
 import ChartContainer from './components/ChartContainer';
@@ -12,6 +12,7 @@ import TradeSetupPanel from './components/TradeSetupPanel';
 import AuthModal from './components/AuthModal';
 import UserSettings from './components/UserSettings';
 import TelegramSettings from './components/TelegramSettings';
+import TradeHistory from './components/TradeHistory';
 
 // Auth
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -31,6 +32,8 @@ import {
   getTelegramSettings,
   sendSignalToTelegram 
 } from './services/telegramService';
+import { enterTrade } from './services/tradeHistoryService';
+// import { startAutoScanner, stopAutoScanner } from './services/marketScanner'; // TODO: Add to settings UI
 
 // Lista dostępnych instrumentów
 const SYMBOLS = BINANCE_SYMBOLS;
@@ -49,6 +52,8 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTelegramSettings, setShowTelegramSettings] = useState(false);
+  const [showTradeHistory, setShowTradeHistory] = useState(false);
+  const [budgetPLN] = useState(50); // TODO: Add to settings UI
 
   // State - podstawowy
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
@@ -116,6 +121,20 @@ function App() {
     const settings = getTelegramSettings();
     return settings.enabled && settings.botToken && settings.chatId;
   }, []);
+
+  // Zapisanie trade'u do dziennika
+  const handleEnterTrade = useCallback(async (tradeData) => {
+    try {
+      const result = await enterTrade({
+        ...tradeData,
+        budgetPLN: budgetPLN
+      });
+      return result;
+    } catch (err) {
+      console.error('Enter trade error:', err);
+      return { success: false, error: err.message };
+    }
+  }, [budgetPLN]);
 
   // WebSocket initialization
   useEffect(() => {
@@ -420,6 +439,13 @@ function App() {
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
               <button 
+                onClick={() => setShowTradeHistory(true)}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                title="Historia transakcji"
+              >
+                <History className="w-5 h-5 text-white/60" />
+              </button>
+              <button 
                 onClick={() => setShowSettings(true)}
                 className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                 title="Ustawienia"
@@ -529,7 +555,7 @@ function App() {
 
           {/* ===== TRADE SETUP - ZAWSZE WIDOCZNY na dole ===== */}
           {activeMarket === 'crypto' && (
-            <div className="flex-shrink-0 h-32">
+            <div className="flex-shrink-0 h-auto min-h-[8rem]">
               <TradeSetupPanel
                 tradeSetup={analysis?.tradeSetup}
                 currentPrice={analysis?.currentPrice}
@@ -539,6 +565,9 @@ function App() {
                 confidence={analysis?.confidence || 0}
                 onSendTelegram={sendTelegramManual}
                 telegramEnabled={isTelegramConfigured()}
+                budgetPLN={budgetPLN}
+                onEnterTrade={handleEnterTrade}
+                isAuthenticated={isAuthenticated}
               />
             </div>
           )}
@@ -636,6 +665,10 @@ function App() {
       <TelegramSettings 
         isOpen={showTelegramSettings} 
         onClose={() => setShowTelegramSettings(false)} 
+      />
+      <TradeHistory 
+        isOpen={showTradeHistory} 
+        onClose={() => setShowTradeHistory(false)} 
       />
     </div>
   );

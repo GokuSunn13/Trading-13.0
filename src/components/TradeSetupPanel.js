@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -10,8 +10,11 @@ import {
   DollarSign,
   Loader2,
   Send,
-  Smartphone
+  Smartphone,
+  Rocket,
+  Calculator
 } from 'lucide-react';
+import { calculatePositionSize } from '../services/tradeHistoryService';
 
 /**
  * Trade Setup Panel - Kompaktowy panel SL/TP z integracją Bybit i Telegram
@@ -19,7 +22,8 @@ import {
  * Nowe funkcje:
  * - "Kopiuj dla Bybit" - formatuje dane do szybkiego wklejenia
  * - "Wyślij na Telegram" - one-click alert na telefon
- * - Wizualne statusy i walidacja
+ * - "ENTER TRADE" - zapisuje transakcję do dziennika
+ * - Kalkulator wielkości pozycji
  */
 const TradeSetupPanel = ({ 
   tradeSetup, 
@@ -29,11 +33,27 @@ const TradeSetupPanel = ({
   interval = '1h',
   confidence = 0,
   onSendTelegram,
-  telegramEnabled = false
+  telegramEnabled = false,
+  budgetPLN = 50,
+  onEnterTrade,
+  isAuthenticated = false
 }) => {
   const [copiedField, setCopiedField] = useState(null);
   const [isSending, setIsSending] = useState(false);
-  const [sendStatus, setSendStatus] = useState(null); // 'success' | 'error' | null
+  const [sendStatus, setSendStatus] = useState(null);
+  const [isEntering, setIsEntering] = useState(false);
+  const [enterStatus, setEnterStatus] = useState(null);
+
+  // Oblicz wielkość pozycji
+  const positionCalc = useMemo(() => {
+    if (!tradeSetup) return null;
+    return calculatePositionSize(
+      budgetPLN, 
+      tradeSetup.entry, 
+      tradeSetup.stopLoss, 
+      tradeSetup.takeProfit
+    );
+  }, [tradeSetup, budgetPLN]);
 
   const formatPrice = (price) => {
     if (!price) return '--';
@@ -96,6 +116,37 @@ const TradeSetupPanel = ({
       setIsSending(false);
     }
   }, [tradeSetup, symbol, interval, confidence, onSendTelegram]);
+
+  // ENTER TRADE - zapisz do dziennika
+  const handleEnterTrade = useCallback(async () => {
+    if (!tradeSetup || !onEnterTrade) return;
+    
+    setIsEntering(true);
+    setEnterStatus(null);
+    
+    try {
+      const tradeData = {
+        symbol: symbol,
+        direction: tradeSetup.direction,
+        entryPrice: tradeSetup.entry,
+        stopLoss: tradeSetup.stopLoss,
+        takeProfit: tradeSetup.takeProfit,
+        confidence: confidence,
+        interval: interval,
+        budgetPLN: budgetPLN
+      };
+      
+      const result = await onEnterTrade(tradeData);
+      setEnterStatus(result?.success ? 'success' : 'error');
+      
+      setTimeout(() => setEnterStatus(null), 3000);
+    } catch (err) {
+      console.error('Enter trade error:', err);
+      setEnterStatus('error');
+    } finally {
+      setIsEntering(false);
+    }
+  }, [tradeSetup, symbol, interval, confidence, budgetPLN, onEnterTrade]);
 
   // Walidacja - czy przyciski są aktywne
   const isDataValid = tradeSetup && 
@@ -273,8 +324,60 @@ const TradeSetupPanel = ({
               <Copy className="w-4 h-4" />
             )}
           </button>
+
+          {/* 🚀 ENTER TRADE - zapisz do dziennika */}
+          <button
+            onClick={handleEnterTrade}
+            disabled={!isDataValid || isEntering}
+            className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all ${
+              enterStatus === 'success'
+                ? 'bg-[#30D158] text-white'
+                : enterStatus === 'error'
+                  ? 'bg-[#FF453A] text-white'
+                  : isDataValid
+                    ? 'bg-gradient-to-r from-[#007AFF] to-[#5856D6] text-white hover:from-[#0066DD] hover:to-[#4845C4] shadow-lg'
+                    : 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed'
+            }`}
+            title={isAuthenticated ? 'Zapisz wejście w trade' : 'Zaloguj się aby zapisywać trade\'y'}
+          >
+            {isEntering ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : enterStatus === 'success' ? (
+              <Check className="w-4 h-4" />
+            ) : enterStatus === 'error' ? (
+              <AlertTriangle className="w-4 h-4" />
+            ) : (
+              <Rocket className="w-4 h-4" />
+            )}
+            <span>
+              {isEntering ? 'Zapisuję...' : 
+               enterStatus === 'success' ? 'Zapisano!' :
+               enterStatus === 'error' ? 'Błąd' : 'ENTER'}
+            </span>
+          </button>
         </div>
       </div>
+
+      {/* Position Calculator Row */}
+      {positionCalc && (
+        <div className="flex items-center gap-3 mt-2 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10">
+          <Calculator className="w-4 h-4 text-[#BF5AF2]" />
+          <div className="flex-1 flex items-center gap-4 text-xs">
+            <span className="text-white/50">
+              Budżet: <span className="text-white font-mono">{budgetPLN} PLN</span>
+            </span>
+            <span className="text-white/50">
+              Ilość: <span className="text-white font-mono">{positionCalc.units.toFixed(4)}</span>
+            </span>
+            <span className="text-[#30D158]">
+              Zysk: <span className="font-mono">+{positionCalc.potentialProfitPLN} PLN</span>
+            </span>
+            <span className="text-[#FF453A]">
+              Strata: <span className="font-mono">-{positionCalc.potentialLossPLN} PLN</span>
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Row - Visual Bar & Warnings */}
       <div className="flex items-center gap-4 mt-2">

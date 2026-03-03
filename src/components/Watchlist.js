@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Star, 
   TrendingUp, 
@@ -7,13 +7,48 @@ import {
   Bitcoin, 
   BarChart3,
   ChevronRight,
-  Coins
+  Coins,
+  Loader2
 } from 'lucide-react';
 import NotificationSettings from './NotificationSettings';
+import { getFavorites, toggleFavorite as toggleFavoriteApi } from '../services/favoritesService';
 
 const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, tickerData }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [favorites, setFavorites] = useState(['BTC/USDT', 'ETH/USDT']);
+  const [favorites, setFavorites] = useState([]);
+  const [togglingSymbol, setTogglingSymbol] = useState(null);
+
+  // Pobierz ulubione przy starcie
+  useEffect(() => {
+    const loadFavorites = async () => {
+      const favs = await getFavorites();
+      setFavorites(favs);
+    };
+    loadFavorites();
+  }, []);
+
+  // Toggle favorite z synchronizacją do Supabase
+  const toggleFavorite = useCallback(async (symbol, e) => {
+    e.stopPropagation();
+    const isFavorite = favorites.includes(symbol);
+    
+    // Optymistyczna aktualizacja UI
+    setFavorites(prev => 
+      isFavorite ? prev.filter(s => s !== symbol) : [...prev, symbol]
+    );
+    setTogglingSymbol(symbol);
+
+    // Sync z Supabase
+    const result = await toggleFavoriteApi(symbol, isFavorite);
+    
+    if (!result.success) {
+      // Przywróć poprzedni stan przy błędzie
+      setFavorites(prev => 
+        isFavorite ? [...prev, symbol] : prev.filter(s => s !== symbol)
+      );
+    }
+    setTogglingSymbol(null);
+  }, [favorites]);
 
   const categories = {
     major: {
@@ -26,15 +61,6 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
       icon: Coins,
       symbols: ['XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT']
     }
-  };
-
-  const toggleFavorite = (symbol, e) => {
-    e.stopPropagation();
-    setFavorites(prev => 
-      prev.includes(symbol) 
-        ? prev.filter(s => s !== symbol)
-        : [...prev, symbol]
-    );
   };
 
   const getSymbolData = (symbol) => {
@@ -139,8 +165,13 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
                         <button
                           onClick={(e) => toggleFavorite(symbol, e)}
                           className="p-1 rounded hover:bg-white/10"
+                          disabled={togglingSymbol === symbol}
                         >
-                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          {togglingSymbol === symbol ? (
+                            <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />
+                          ) : (
+                            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          )}
                         </button>
                         <div className="text-left">
                           <span className="font-medium text-white block">{symbol}</span>
@@ -194,8 +225,13 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
                         <button
                           onClick={(e) => toggleFavorite(symbol, e)}
                           className="p-1 rounded hover:bg-white/10"
+                          disabled={togglingSymbol === symbol}
                         >
-                          <Star className={`w-4 h-4 ${isFavorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600'}`} />
+                          {togglingSymbol === symbol ? (
+                            <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />
+                          ) : (
+                            <Star className={`w-4 h-4 ${isFavorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600'}`} />
+                          )}
                         </button>
                         <div className="text-left">
                           <span className="font-medium text-white block">{symbol}</span>
