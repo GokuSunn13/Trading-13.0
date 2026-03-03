@@ -184,8 +184,14 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
         vertTouchDrag: true,
       },
       handleScale: {
-        axisPressedMouseMove: true,
-        axisDoubleClickReset: true,
+        axisPressedMouseMove: {
+          time: true,
+          price: true,
+        },
+        axisDoubleClickReset: {
+          time: true,
+          price: true,
+        },
         mouseWheel: true,
         pinch: true,
       },
@@ -457,15 +463,17 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
   }, []);
 
   return (
-    <div className={`ultra-glass rounded-2xl transition-all duration-300 ${
+    <div className={`ultra-glass rounded-2xl transition-all duration-300 flex flex-col ${
       isFullscreen ? 'fixed inset-4 z-50' : 'h-full'
     }`}
     style={{
       fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
-      overflow: 'visible', // Allow price scale interactions
+      overflow: 'visible',
+      position: 'relative',
+      minHeight: 0,
     }}>
       {/* Header - bez traffic light buttons */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10"
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10"
            style={{ background: 'rgba(255,255,255,0.05)' }}>
         {/* Symbol & Price - Left */}
         <div className="flex items-center gap-4">
@@ -545,7 +553,7 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
       </div>
 
       {/* Legenda wskaźników */}
-      <div className="flex items-center gap-4 px-4 py-2 text-xs border-b border-white/5" 
+      <div className="flex-shrink-0 flex items-center gap-4 px-4 py-2 text-xs border-b border-white/5" 
            style={{ background: 'rgba(0,0,0,0.2)' }}>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-0.5 rounded" style={{ background: '#FFD60A' }}></span>
@@ -566,7 +574,7 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
       </div>
 
       {/* Chart wrapper z paskiem narzędzi */}
-      <div className="relative flex" style={{ overflow: 'visible' }}>
+      <div className="relative flex flex-1 min-h-0" style={{ overflow: 'visible' }}>
         {/* Drawing Toolbar - lewy pasek narzędzi Glassmorphism */}
         <div className="absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-xl p-1.5"
              style={{ 
@@ -662,13 +670,13 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
           </div>
         )}
 
-        {/* Chart container - przezroczyste tło z pointer-events */}
+        {/* Chart container - flex-1 fills remaining space */}
         <div 
           ref={chartContainerRef} 
-          className={`w-full ${isFullscreen ? 'h-[calc(100%-100px)]' : 'h-[500px]'}`}
+          className="w-full flex-1"
           style={{ 
             background: 'transparent',
-            minHeight: '500px',
+            minHeight: '300px',
             cursor: activeTool ? 'crosshair' : 'grab',
             position: 'relative',
             zIndex: 5,

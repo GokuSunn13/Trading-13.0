@@ -87,36 +87,67 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+// Odczyt zmiennych środowiskowych
+// W Create React App zmienne są wczytywane przy starcie/buildzie
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+
+// DEBUG: Pokaż wartości zmiennych środowiskowych
+console.log('🔧 Supabase ENV Check:', {
+  hasUrl: !!supabaseUrl,
+  hasKey: !!supabaseAnonKey,
+  urlPrefix: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'undefined',
+  keyPrefix: supabaseAnonKey ? supabaseAnonKey.substring(0, 20) + '...' : 'undefined'
+});
 
 // Sprawdzenie konfiguracji
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
     '⚠️ Supabase nie jest skonfigurowany!\n' +
-    'Utwórz plik .env.local z REACT_APP_SUPABASE_URL i REACT_APP_SUPABASE_ANON_KEY\n' +
+    '📋 Upewnij się, że:\n' +
+    '   1. Plik .env.local istnieje w katalogu głównym projektu\n' +
+    '   2. Zawiera REACT_APP_SUPABASE_URL i REACT_APP_SUPABASE_ANON_KEY\n' +
+    '   3. Serwer deweloperski został RESTARTOWANY po utworzeniu .env.local\n' +
+    '   4. Jeśli używasz builda, uruchom "npm run build" ponownie\n' +
     'Aplikacja będzie działać w trybie demo bez autoryzacji.'
   );
 }
 
 // Tworzenie klienta Supabase
-export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+let supabase = null;
+
+if (supabaseUrl && supabaseAnonKey) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true
       }
-    })
-  : null;
+    });
+    console.log('✅ Supabase client utworzony pomyślnie');
+  } catch (err) {
+    console.error('❌ Błąd tworzenia Supabase client:', err);
+  }
+}
+
+export { supabase };
 
 // DEBUG: Udostępnij supabase w konsoli przeglądarki
 if (typeof window !== 'undefined') {
   window.supabase = supabase;
-  console.log('🛠️ Supabase dostępny jako window.supabase');
+  window.ENV_DEBUG = {
+    REACT_APP_SUPABASE_URL: supabaseUrl ? 'SET' : 'NOT SET',
+    REACT_APP_SUPABASE_ANON_KEY: supabaseAnonKey ? 'SET' : 'NOT SET'
+  };
+  console.log('🛠️ Debug: window.supabase i window.ENV_DEBUG dostępne w konsoli');
 }
 
 // Czy Supabase jest dostępny
-export const isSupabaseConfigured = () => !!supabase;
+export const isSupabaseConfigured = () => {
+  const configured = !!supabase;
+  console.log('🔍 isSupabaseConfigured() =', configured);
+  return configured;
+};
 
 export default supabase;

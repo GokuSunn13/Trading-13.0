@@ -162,10 +162,13 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
                 const isPositive = change >= 0;
 
                 return (
-                  <button
+                  <div
                     key={symbol}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectSymbol(symbol)}
-                    className={`w-full p-3 rounded-lg transition-all duration-200 group
+                    onKeyDown={(e) => e.key === 'Enter' && onSelectSymbol(symbol)}
+                    className={`w-full p-3 rounded-lg transition-all duration-200 group cursor-pointer
                               ${isSelected 
                                 ? 'bg-blue-500/20 border border-blue-500/30' 
                                 : 'glass hover:bg-white/5 border border-transparent'
@@ -200,7 +203,7 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
                         )}
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -222,10 +225,13 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
                 const isFavorite = favorites.includes(symbol);
 
                 return (
-                  <button
+                  <div
                     key={symbol}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectSymbol(symbol)}
-                    className={`w-full p-3 rounded-lg transition-all duration-200 group
+                    onKeyDown={(e) => e.key === 'Enter' && onSelectSymbol(symbol)}
+                    className={`w-full p-3 rounded-lg transition-all duration-200 group cursor-pointer
                               ${isSelected 
                                 ? 'bg-blue-500/20 border border-blue-500/30' 
                                 : 'glass hover:bg-white/5 border border-transparent'
@@ -256,7 +262,7 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
                         <ChevronRight className={`w-4 h-4 transition-transform ${isSelected ? 'text-blue-400 translate-x-1' : 'text-gray-600'}`} />
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
