@@ -40,7 +40,5 @@ export const safeQuery = async (queryFn, timeoutMs = 8000) => {
   }
 };
 
-export { withTimeout, safeQuery };
-
 const supabaseHelpers = { withTimeout, safeQuery };
 export default supabaseHelpers;
