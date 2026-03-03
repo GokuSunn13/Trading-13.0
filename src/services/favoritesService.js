@@ -24,10 +24,10 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { withTimeout } from '../lib/supabaseHelpers';
+import { getFavoritesRest, addFavoriteRest, removeFavoriteRest } from '../lib/supabaseRest';
 
 const STORAGE_KEY = 'favorites_local';
-const TIMEOUT_MS = 8000; // 8 sekund timeout
+const USE_REST_API = true; // Użyj bezpośredniego REST API zamiast SDK
 
 /**
  * Pobiera ulubione z localStorage (fallback)
@@ -62,19 +62,27 @@ export const getFavorites = async () => {
   }
 
   try {
-    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
+    // Pobierz user ID z SDK (to działa)
+    const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       return getLocalFavorites();
     }
 
-    const { data, error } = await withTimeout(
-      supabase
-        .from('favorites')
-        .select('symbol')
-        .eq('user_id', user.id),
-      TIMEOUT_MS
-    );
+    // Użyj REST API zamiast SDK
+    if (USE_REST_API) {
+      const symbols = await getFavoritesRest(user.id);
+      if (symbols.length > 0) {
+        setLocalFavorites(symbols);
+      }
+      return symbols.length > 0 ? symbols : getLocalFavorites();
+    }
+
+    // Fallback do SDK (jeśli USE_REST_API = false)
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('symbol')
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error fetching favorites:', error);
@@ -82,7 +90,6 @@ export const getFavorites = async () => {
     }
 
     const symbols = data.map(f => f.symbol);
-    // Sync do localStorage jako backup
     setLocalFavorites(symbols);
     return symbols;
   } catch (err) {
@@ -108,33 +115,36 @@ export const addFavorite = async (symbol) => {
   }
 
   try {
-    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
+    const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       return { success: true }; // Fallback do localStorage
     }
 
-    const payload = { user_id: user.id, symbol };
-    console.log("Próba zapisu favorite:", payload);
+    console.log("Próba zapisu favorite:", { user_id: user.id, symbol });
 
-    const { error } = await withTimeout(
-      supabase
-        .from('favorites')
-        .insert([payload]),
-      TIMEOUT_MS
-    );
+    // Użyj REST API
+    if (USE_REST_API) {
+      const result = await addFavoriteRest(user.id, symbol);
+      return result.success 
+        ? { success: true } 
+        : { success: true, warning: 'Zapisano lokalnie, sync nie powiódł się' };
+    }
+
+    // Fallback do SDK
+    const { error } = await supabase
+      .from('favorites')
+      .insert([{ user_id: user.id, symbol }]);
 
     if (error && !error.message.includes('duplicate')) {
       console.error('Error adding favorite:', error);
-      // localStorage już zaktualizowany, więc zwracamy success
       return { success: true, warning: 'Zapisano lokalnie, sync z chmurą nie powiódł się' };
     }
 
     return { success: true };
   } catch (err) {
     console.error('Error in addFavorite:', err);
-    // localStorage już zaktualizowany na początku funkcji
-    return { success: true, warning: 'Zapisano lokalnie (timeout sync z chmurą)' };
+    return { success: true, warning: 'Zapisano lokalnie (błąd sync)' };
   }
 };
 
@@ -153,32 +163,36 @@ export const removeFavorite = async (symbol) => {
   }
 
   try {
-    const { data: { user } } = await withTimeout(supabase.auth.getUser(), TIMEOUT_MS);
+    const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       return { success: true };
     }
 
-    const { error } = await withTimeout(
-      supabase
-        .from('favorites')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('symbol', symbol),
-      TIMEOUT_MS
-    );
+    // Użyj REST API
+    if (USE_REST_API) {
+      const result = await removeFavoriteRest(user.id, symbol);
+      return result.success 
+        ? { success: true } 
+        : { success: true, warning: 'Usunięto lokalnie, sync nie powiódł się' };
+    }
+
+    // Fallback do SDK
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('symbol', symbol);
 
     if (error) {
       console.error('Error removing favorite:', error);
-      // localStorage już zaktualizowany, więc zwracamy success
       return { success: true, warning: 'Usunięto lokalnie, sync z chmurą nie powiódł się' };
     }
 
     return { success: true };
   } catch (err) {
     console.error('Error in removeFavorite:', err);
-    // localStorage już zaktualizowany na początku funkcji
-    return { success: true, warning: 'Usunięto lokalnie (timeout sync z chmurą)' };
+    return { success: true, warning: 'Usunięto lokalnie (błąd sync)' };
   }
 };
 
