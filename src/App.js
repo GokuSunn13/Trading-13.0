@@ -11,6 +11,7 @@ import TradingViewWidget from './components/TradingViewWidget';
 import TradeSetupPanel from './components/TradeSetupPanel';
 import AuthModal from './components/AuthModal';
 import UserSettings from './components/UserSettings';
+import TelegramSettings from './components/TelegramSettings';
 
 // Auth
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -49,6 +50,7 @@ function App() {
   const { user, profile, isAuthenticated, isConfigured } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTelegramSettings, setShowTelegramSettings] = useState(false);
 
   // State - podstawowy
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
@@ -405,9 +407,15 @@ function App() {
             </span>
           </div>
 
-          <button className="p-2 rounded-lg hover:bg-white/10 transition-colors relative">
+          <button 
+            onClick={() => setShowTelegramSettings(true)}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors relative"
+            title="Ustawienia Telegram"
+          >
             <Bell className="w-5 h-5 text-white/60" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-[#007AFF] rounded-full live-indicator"></span>
+            {profile?.telegram_enabled && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-[#30D158] rounded-full live-indicator"></span>
+            )}
           </button>
           
           {/* User Avatar / Login Button */}
@@ -626,6 +634,10 @@ function App() {
       <UserSettings 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)} 
+      />
+      <TelegramSettings 
+        isOpen={showTelegramSettings} 
+        onClose={() => setShowTelegramSettings(false)} 
       />
     </div>
   );
