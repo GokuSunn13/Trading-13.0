@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu, X, Bell, Wifi, WifiOff, AlertTriangle, RefreshCw, Settings, LogIn, History, BarChart3 } from 'lucide-react';
+import { Menu, X, Bell, Wifi, WifiOff, AlertTriangle, RefreshCw, Settings, History, BarChart3 } from 'lucide-react';
 
 // Components
 import ChartContainer from './components/ChartContainer';
 import Watchlist from './components/Watchlist';
-import AISummary from './components/AISummary';
 import ControlPanel from './components/ControlPanel';
 import SymbolSearch from './components/SymbolSearch';
 import TradingViewWidget from './components/TradingViewWidget';
-import TradeSetupPanel from './components/TradeSetupPanel';
-import AuthModal from './components/AuthModal';
+import TradeTerminal from './components/TradeTerminal';
+import WelcomePage from './components/WelcomePage';
 import UserSettings from './components/UserSettings';
 import TelegramSettings from './components/TelegramSettings';
 import TradeHistory from './components/TradeHistory';
 import StatsView from './components/StatsView';
+import StatsManager from './components/StatsManager';
 
 // Auth
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -34,7 +34,6 @@ import {
   sendSignalToTelegram 
 } from './services/telegramService';
 import { enterTrade } from './services/tradeHistoryService';
-// import { startAutoScanner, stopAutoScanner } from './services/marketScanner'; // TODO: Add to settings UI
 
 // Lista dostępnych instrumentów
 const SYMBOLS = BINANCE_SYMBOLS;
@@ -49,13 +48,12 @@ const ConnectionStatus = {
 
 function App() {
   // Auth state
-  const { user, profile, isAuthenticated } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { user, profile, isAuthenticated, loading: authLoading } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [showTelegramSettings, setShowTelegramSettings] = useState(false);
   const [showTradeHistory, setShowTradeHistory] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
-  const [budgetPLN] = useState(50); // TODO: Add to settings UI
+  const [statsExpanded, setStatsExpanded] = useState(false);
 
   // State - podstawowy
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
@@ -75,6 +73,7 @@ function App() {
   const [activeMarket, setActiveMarket] = useState('crypto');
   const [tradingViewSymbol, setTradingViewSymbol] = useState(null);
   const [higherTfData, setHigherTfData] = useState(null);
+  const [tradeHorizon, setTradeHorizon] = useState('short');
 
   // Refs
   const wsRef = useRef(null);
@@ -84,18 +83,12 @@ function App() {
 
   // Funkcja wysyłająca powiadomienie Telegram (z Supabase profiles)
   const sendTelegramNotification = useCallback(async (result, symbol, interval, candleTime) => {
-    // Zapobiegnij duplikatom dla tej samej świecy
     if (lastAlertCandleTimeRef.current === candleTime) return;
     
-    // Używamy nowej funkcji sendSignalToTelegram która:
-    // 1. Sprawdza confidence > 75%
-    // 2. Pobiera chat_id z Supabase profiles (telegram_chat_id)
-    // 3. Sprawdza czy auto_send_signals jest włączony
-    // 4. Wysyła sformatowany sygnał z linkiem do Vercel
     const response = await sendSignalToTelegram(
       result, 
       interval, 
-      'https://trading-13-0.vercel.app' // Link do Twojej strony na Vercel
+      'https://trading-13-0.vercel.app'
     );
 
     if (response.sent) {
@@ -104,21 +97,15 @@ function App() {
     }
   }, []);
 
-  // Manual Telegram send - wywoływane z TradeSetupPanel
+  // Manual Telegram send
   const sendTelegramManual = useCallback(async (alertData) => {
     const telegramSettings = getTelegramSettings();
     if (!telegramSettings.enabled || !telegramSettings.botToken || !telegramSettings.chatId) {
       return { success: false, message: 'Telegram nie jest skonfigurowany' };
     }
-
-    return await sendTelegramAlert(
-      telegramSettings.botToken,
-      telegramSettings.chatId,
-      alertData
-    );
+    return await sendTelegramAlert(telegramSettings.botToken, telegramSettings.chatId, alertData);
   }, []);
 
-  // Sprawdzanie czy Telegram jest włączony
   const isTelegramConfigured = useCallback(() => {
     const settings = getTelegramSettings();
     return settings.enabled && settings.botToken && settings.chatId;
@@ -127,16 +114,13 @@ function App() {
   // Zapisanie trade'u do dziennika
   const handleEnterTrade = useCallback(async (tradeData) => {
     try {
-      const result = await enterTrade({
-        ...tradeData,
-        budgetPLN: budgetPLN
-      });
+      const result = await enterTrade(tradeData);
       return result;
     } catch (err) {
       console.error('Enter trade error:', err);
       return { success: false, error: err.message };
     }
-  }, [budgetPLN]);
+  }, []);
 
   // WebSocket initialization
   useEffect(() => {
@@ -154,7 +138,7 @@ function App() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Pobierz dane HTF (1h) dla multi-timeframe filter
+  // Pobierz dane HTF
   const fetchHigherTfData = useCallback(async (symbol) => {
     try {
       const htfKlines = await fetchKlines(symbol, '1h', 50);
@@ -179,10 +163,10 @@ function App() {
     setIsAnalyzing(true);
 
     try {
-      // NAPRAWIONE: Prawidłowe wywołanie z 3 parametrami: data, symbol, options
       const result = analyzeMarketData(confirmedData, symbol, {
         higherTfData: options.higherTfData || higherTfData,
-        currentInterval: options.currentInterval || selectedTimeframe
+        currentInterval: options.currentInterval || selectedTimeframe,
+        horizon: tradeHorizon
       });
       
       setAnalysis(result);
@@ -196,7 +180,7 @@ function App() {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [isAnalyzing, higherTfData, selectedTimeframe, sendTelegramNotification]);
+  }, [isAnalyzing, higherTfData, selectedTimeframe, sendTelegramNotification, tradeHorizon]);
 
   // Pobranie danych historycznych
   const fetchInitialData = useCallback(async (symbol, timeframe) => {
@@ -274,26 +258,29 @@ function App() {
 
   // Effects
   useEffect(() => {
-    fetchInitialData(selectedSymbol, selectedTimeframe);
-    fetchTickers();
-  }, [selectedSymbol, selectedTimeframe, fetchInitialData, fetchTickers]);
+    if (isAuthenticated) {
+      fetchInitialData(selectedSymbol, selectedTimeframe);
+      fetchTickers();
+    }
+  }, [selectedSymbol, selectedTimeframe, fetchInitialData, fetchTickers, isAuthenticated]);
 
   useEffect(() => {
-    if (connectionStatus === ConnectionStatus.CONNECTED && isAutoRefresh) {
+    if (isAuthenticated && connectionStatus === ConnectionStatus.CONNECTED && isAutoRefresh) {
       connectWebSocket(selectedSymbol, selectedTimeframe);
     }
     return () => {
       if (wsRef.current) wsRef.current.disconnect();
     };
-  }, [selectedSymbol, selectedTimeframe, connectionStatus, isAutoRefresh, connectWebSocket]);
+  }, [selectedSymbol, selectedTimeframe, connectionStatus, isAutoRefresh, connectWebSocket, isAuthenticated]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     fetchTickers();
     tickerIntervalRef.current = setInterval(fetchTickers, 10000);
     return () => {
       if (tickerIntervalRef.current) clearInterval(tickerIntervalRef.current);
     };
-  }, [fetchTickers]);
+  }, [fetchTickers, isAuthenticated]);
 
   // Handlers
   const handleTimeframeChange = (tf) => setSelectedTimeframe(tf);
@@ -322,14 +309,32 @@ function App() {
   const currentTicker = tickerData[selectedSymbol];
 
   // ==========================================
-  // ULTRA-GLASS FULL-SCREEN TERMINAL LAYOUT
+  // AUTH GATEKEEPING - Show WelcomePage for unauthenticated users
   // ==========================================
-  
-  // ========== DASHBOARD VIEW ==========
+  if (authLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center"
+           style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #0d1030 50%, #0a0a1a 100%)' }}>
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin" />
+          <p className="text-white/50 text-sm">Ładowanie...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <WelcomePage />;
+  }
+
+  // ========== FULL DASHBOARD VIEW ==========
   if (showDashboard) {
     return <StatsView onBack={() => setShowDashboard(false)} />;
   }
   
+  // ==========================================
+  // MAIN DASHBOARD LAYOUT
+  // ==========================================
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col">
       {/* Error Banner */}
@@ -360,30 +365,30 @@ function App() {
         </div>
       )}
 
-      {/* ========== HEADER - Fixed h-16 ========== */}
-      <header className="flex-shrink-0 h-16 flex items-center justify-between px-4 ultra-glass"
+      {/* ========== HEADER ========== */}
+      <header className="flex-shrink-0 h-14 flex items-center justify-between px-4 ultra-glass"
               style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         {/* Left - Menu & Logo */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
             className="lg:hidden p-2 rounded-lg hover:bg-white/10 transition-colors">
             {sidebarOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
           </button>
           
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
                  style={{ background: 'linear-gradient(135deg, #007AFF 0%, #BF5AF2 100%)' }}>
-              <span className="text-white font-bold text-lg">AI</span>
+              <span className="text-white font-bold text-base">AI</span>
             </div>
             <div className="hidden sm:block">
-              <span className="font-semibold text-white text-lg">Trading Terminal</span>
-              <div className="text-xs text-white/40">Ultra-Glass Edition</div>
+              <span className="font-semibold text-white text-base leading-tight block">Trading Terminal</span>
+              <span className="text-[10px] text-white/40 leading-tight">v2.0 Dashboard</span>
             </div>
           </div>
         </div>
 
-        {/* Center - Symbol Search & Info */}
-        <div className="hidden md:flex items-center gap-4">
+        {/* Center - Symbol Search */}
+        <div className="hidden md:flex items-center gap-3">
           <SymbolSearch
             onSelectCryptoSymbol={handleSelectCryptoSymbol}
             onSelectTradingViewSymbol={handleSelectTradingViewSymbol}
@@ -392,125 +397,87 @@ function App() {
           />
           
           {activeMarket === 'crypto' && currentTicker && (
-            <span className={`text-sm px-3 py-1.5 rounded-full font-mono font-medium ${
-              currentTicker.priceChangePercent >= 0 
-                ? 'badge-bullish' 
-                : 'badge-bearish'
+            <span className={`text-xs px-2.5 py-1 rounded-full font-mono font-medium ${
+              currentTicker.priceChangePercent >= 0 ? 'badge-bullish' : 'badge-bearish'
             }`}>
               {currentTicker.priceChangePercent >= 0 ? '+' : ''}{currentTicker.priceChangePercent.toFixed(2)}%
             </span>
           )}
           
           {activeMarket === 'crypto' && analysis && (
-            <span className={`text-sm px-3 py-1.5 rounded-full ${
-              analysis.trend?.includes('Wzrostowy') 
-                ? 'badge-bullish' 
-                : analysis.trend?.includes('Spadkowy')
-                ? 'badge-bearish'
-                : 'badge-neutral'
+            <span className={`text-xs px-2.5 py-1 rounded-full ${
+              analysis.trend?.includes('Wzrostowy') ? 'badge-bullish' : 
+              analysis.trend?.includes('Spadkowy') ? 'badge-bearish' : 'badge-neutral'
             }`}>
-              AI: {analysis.trend?.split(' ')[0]}
+              AI: {analysis.confidence}%
             </span>
           )}
         </div>
 
         {/* Right - Actions */}
-        <div className="flex items-center gap-2">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
-            connectionStatus === ConnectionStatus.CONNECTED 
-              ? 'badge-bullish'
-              : connectionStatus === ConnectionStatus.ERROR
-              ? 'badge-bearish'
-              : 'badge-neutral'
+        <div className="flex items-center gap-1.5">
+          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${
+            connectionStatus === ConnectionStatus.CONNECTED ? 'badge-bullish' :
+            connectionStatus === ConnectionStatus.ERROR ? 'badge-bearish' : 'badge-neutral'
           }`}>
             {connectionStatus === ConnectionStatus.CONNECTED 
-              ? <Wifi className="w-3.5 h-3.5" />
-              : <WifiOff className="w-3.5 h-3.5" />}
+              ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
             <span className="hidden sm:inline">
               {connectionStatus === ConnectionStatus.CONNECTED ? 'Live' : 
-               connectionStatus === ConnectionStatus.CONNECTING ? 'Łączenie...' : 'Offline'}
+               connectionStatus === ConnectionStatus.CONNECTING ? '...' : 'Off'}
             </span>
           </div>
 
-          <button 
-            onClick={() => setShowTelegramSettings(true)}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors relative"
-            title="Ustawienia Telegram"
-          >
-            <Bell className="w-5 h-5 text-white/60" />
+          <button onClick={() => setShowTelegramSettings(true)}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors relative" title="Telegram">
+            <Bell className="w-4 h-4 text-white/60" />
             {profile?.telegram_enabled && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-[#30D158] rounded-full live-indicator"></span>
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-[#30D158] rounded-full live-indicator" />
             )}
           </button>
-          
-          {/* User Avatar / Login Button */}
-          {isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setShowDashboard(true)}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                title="Dashboard statystyk"
-              >
-                <BarChart3 className="w-5 h-5 text-white/60" />
-              </button>
-              <button 
-                onClick={() => setShowTradeHistory(true)}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                title="Historia transakcji"
-              >
-                <History className="w-5 h-5 text-white/60" />
-              </button>
-              <button 
-                onClick={() => setShowSettings(true)}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                title="Ustawienia"
-              >
-                <Settings className="w-5 h-5 text-white/60" />
-              </button>
-              <button 
-                onClick={() => setShowSettings(true)}
-                className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                {user?.user_metadata?.avatar_url ? (
-                  <img 
-                    src={user.user_metadata.avatar_url} 
-                    alt="Avatar" 
-                    className="w-8 h-8 rounded-full ring-2 ring-white/20"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ring-2 ring-white/20">
-                    <span className="text-white font-bold text-sm">
-                      {user?.email?.[0]?.toUpperCase() || 'U'}
-                    </span>
-                  </div>
-                )}
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all text-white text-sm font-medium"
-            >
-              <LogIn className="w-4 h-4" />
-              <span className="hidden sm:inline">Zaloguj</span>
-            </button>
-          )}
+
+          <button onClick={() => setShowDashboard(true)}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors" title="Dashboard">
+            <BarChart3 className="w-4 h-4 text-white/60" />
+          </button>
+          <button onClick={() => setShowTradeHistory(true)}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors" title="Historia">
+            <History className="w-4 h-4 text-white/60" />
+          </button>
+          <button onClick={() => setShowSettings(true)}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors" title="Ustawienia">
+            <Settings className="w-4 h-4 text-white/60" />
+          </button>
+
+          <button onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-white/10 transition-colors">
+            {user?.user_metadata?.avatar_url ? (
+              <img src={user.user_metadata.avatar_url} alt="Avatar" 
+                className="w-7 h-7 rounded-full ring-2 ring-white/20" />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ring-2 ring-white/20">
+                <span className="text-white font-bold text-xs">
+                  {user?.email?.[0]?.toUpperCase() || 'U'}
+                </span>
+              </div>
+            )}
+          </button>
 
           <button onClick={() => setRightPanelOpen(!rightPanelOpen)}
             className="lg:hidden p-2 rounded-lg hover:bg-white/10 transition-colors">
-            <span className={`text-xs font-medium ${rightPanelOpen ? 'text-[#007AFF]' : 'text-white/60'}`}>AI</span>
+            <span className={`text-xs font-medium ${rightPanelOpen ? 'text-[#007AFF]' : 'text-white/60'}`}>Trade</span>
           </button>
         </div>
       </header>
 
-      {/* ========== MAIN CONTENT - flex-1 (fills remaining space) ========== */}
+      {/* ========== MAIN CONTENT ========== */}
       <div className="flex-1 flex overflow-hidden">
         
         {/* ===== LEFT SIDEBAR - Watchlist ===== */}
         <aside className={`
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           fixed lg:relative lg:translate-x-0
-          w-72 h-full z-30 flex-shrink-0
+          w-64 h-full z-30 flex-shrink-0
           transition-transform duration-300 ease-in-out
           ultra-glass
         `}
@@ -533,11 +500,11 @@ function App() {
             onClick={() => setSidebarOpen(false)} />
         )}
 
-        {/* ===== MAIN CENTER AREA ===== */}
-        <main className="flex-1 flex flex-col overflow-hidden p-4 gap-3">
-          {/* Control Panel - only for crypto */}
+        {/* ===== CENTER AREA - Chart + Controls + Stats ===== */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {/* Control Panel */}
           {activeMarket === 'crypto' && (
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 p-3 pb-0">
               <ControlPanel
                 onRefresh={handleRefresh}
                 onTimeframeChange={handleTimeframeChange}
@@ -549,8 +516,8 @@ function App() {
             </div>
           )}
 
-          {/* ===== CHART - fills remaining space ===== */}
-          <div className="flex-1 min-h-0" style={{ minHeight: '300px' }}>
+          {/* Chart - fills remaining space */}
+          <div className="flex-1 min-h-0 p-3" style={{ minHeight: '250px' }}>
             {activeMarket === 'crypto' ? (
               <ChartContainer
                 data={marketData[selectedSymbol] || []}
@@ -568,71 +535,54 @@ function App() {
             )}
           </div>
 
-          {/* ===== TRADE SETUP - ZAWSZE WIDOCZNY na dole ===== */}
+          {/* Quick Stats Row */}
           {activeMarket === 'crypto' && (
-            <div className="flex-shrink-0 h-auto min-h-[8rem]">
-              <TradeSetupPanel
-                tradeSetup={analysis?.tradeSetup}
-                currentPrice={analysis?.currentPrice}
-                symbol={selectedSymbol}
-                isAnalyzing={isAnalyzing}
-                interval={selectedTimeframe}
-                confidence={analysis?.confidence || 0}
-                onSendTelegram={sendTelegramManual}
-                telegramEnabled={isTelegramConfigured()}
-                budgetPLN={budgetPLN}
-                onEnterTrade={handleEnterTrade}
-                isAuthenticated={isAuthenticated}
-              />
+            <div className="flex-shrink-0 grid grid-cols-2 md:grid-cols-5 gap-1.5 px-3 pb-2">
+              <QuickStat label="24h" value={currentTicker ? `${currentTicker.priceChangePercent >= 0 ? '+' : ''}${currentTicker.priceChangePercent.toFixed(2)}%` : '--'}
+                trend={currentTicker?.priceChangePercent >= 0 ? 'up' : 'down'} />
+              <QuickStat label="RSI" value={analysis?.indicators?.rsi || '--'}
+                trend={parseFloat(analysis?.indicators?.rsi) > 50 ? 'up' : 'down'} />
+              <QuickStat label="ATR" value={analysis?.indicators?.atr || '--'} trend="neutral" />
+              <QuickStat label="AI" value={analysis ? `${analysis.confidence}%` : '--'}
+                trend={analysis?.confidence > 60 ? 'up' : 'neutral'} />
+              <QuickStat label="Vol 24h" value={currentTicker ? formatVolume(currentTicker.volume24h) : '--'} trend="neutral" />
             </div>
           )}
 
-          {/* ===== QUICK STATS - Single row ===== */}
+          {/* Bottom Stats Manager Panel */}
           {activeMarket === 'crypto' && (
-            <div className="flex-shrink-0 grid grid-cols-2 md:grid-cols-5 gap-2">
-              <QuickStat 
-                label="24h Zmiana"
-                value={currentTicker ? `${currentTicker.priceChangePercent >= 0 ? '+' : ''}${currentTicker.priceChangePercent.toFixed(2)}%` : '--'}
-                trend={currentTicker?.priceChangePercent >= 0 ? 'up' : 'down'}
-              />
-              <QuickStat 
-                label="RSI (14)"
-                value={analysis?.indicators?.rsi || '--'}
-                trend={parseFloat(analysis?.indicators?.rsi) > 50 ? 'up' : 'down'}
-              />
-              <QuickStat 
-                label="ATR (14)"
-                value={analysis?.indicators?.atr || '--'}
-                trend="neutral"
-              />
-              <QuickStat 
-                label="AI Confidence"
-                value={analysis ? `${analysis.confidence}%` : '--'}
-                trend={analysis?.confidence > 60 ? 'up' : 'neutral'}
-              />
-              <QuickStat 
-                label="Wolumen 24h"
-                value={currentTicker ? formatVolume(currentTicker.volume24h) : '--'}
-                trend="neutral"
-              />
-            </div>
+            <StatsManager 
+              isExpanded={statsExpanded} 
+              onToggleExpand={() => setStatsExpanded(!statsExpanded)} 
+            />
           )}
         </main>
 
-        {/* ===== RIGHT SIDEBAR - AI Summary ===== */}
+        {/* ===== RIGHT SIDEBAR - Trade Terminal ===== */}
         {activeMarket === 'crypto' && (
           <aside className={`
             ${rightPanelOpen ? 'translate-x-0' : 'translate-x-full'}
             fixed lg:relative lg:translate-x-0 right-0
-            w-80 xl:w-96 h-full z-30 flex-shrink-0
+            w-72 xl:w-80 h-full z-30 flex-shrink-0
             transition-transform duration-300 ease-in-out
             hidden lg:block
             ultra-glass
           `}
           style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
-            <AISummary 
+            <TradeTerminal 
+              tradeSetup={analysis?.tradeSetup}
               analysis={analysis}
-              isLoading={isAnalyzing}
+              currentPrice={analysis?.currentPrice}
+              symbol={selectedSymbol}
+              isAnalyzing={isAnalyzing}
+              interval={selectedTimeframe}
+              confidence={analysis?.confidence || 0}
+              onSendTelegram={sendTelegramManual}
+              telegramEnabled={isTelegramConfigured()}
+              onEnterTrade={handleEnterTrade}
+              isAuthenticated={isAuthenticated}
+              onTimeframeChange={handleTimeframeChange}
+              onHorizonChange={setTradeHorizon}
             />
           </aside>
         )}
@@ -644,47 +594,10 @@ function App() {
         )}
       </div>
 
-      {/* ========== FOOTER - Fixed height ========== */}
-      <footer className="flex-shrink-0 h-10 flex items-center justify-between px-4 text-xs ultra-glass"
-              style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="flex items-center gap-4 text-white/40">
-          <span className="font-medium">AI Trading Terminal v2.0</span>
-          <span className="hidden sm:inline">•</span>
-          <span className="hidden sm:inline">Binance • {selectedTimeframe}</span>
-        </div>
-        <div className="flex items-center gap-4 text-white/40">
-          <span className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${
-              connectionStatus === ConnectionStatus.CONNECTED 
-                ? 'bg-[#30D158] live-indicator' 
-                : connectionStatus === ConnectionStatus.ERROR
-                ? 'bg-[#FF453A]'
-                : 'bg-[#FFD60A] animate-pulse'
-            }`}></span>
-            {connectionStatus === ConnectionStatus.CONNECTED ? 'Connected' : 
-             connectionStatus === ConnectionStatus.CONNECTING ? 'Connecting...' : 'Offline'}
-          </span>
-          <span className="hidden sm:inline font-mono">{new Date().toLocaleTimeString('pl-PL')}</span>
-        </div>
-      </footer>
-
       {/* ========== MODALS ========== */}
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
-      <UserSettings 
-        isOpen={showSettings} 
-        onClose={() => setShowSettings(false)} 
-      />
-      <TelegramSettings 
-        isOpen={showTelegramSettings} 
-        onClose={() => setShowTelegramSettings(false)} 
-      />
-      <TradeHistory 
-        isOpen={showTradeHistory} 
-        onClose={() => setShowTradeHistory(false)} 
-      />
+      <UserSettings isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <TelegramSettings isOpen={showTelegramSettings} onClose={() => setShowTelegramSettings(false)} />
+      <TradeHistory isOpen={showTradeHistory} onClose={() => setShowTradeHistory(false)} />
     </div>
   );
 }
@@ -692,28 +605,19 @@ function App() {
 // Helper to format volume
 const formatVolume = (volume) => {
   if (!volume) return '--';
-  if (volume >= 1e9) return `${(volume / 1e9).toFixed(2)}B`;
-  if (volume >= 1e6) return `${(volume / 1e6).toFixed(2)}M`;
-  if (volume >= 1e3) return `${(volume / 1e3).toFixed(2)}K`;
-  return volume.toFixed(2);
+  if (volume >= 1e9) return `${(volume / 1e9).toFixed(1)}B`;
+  if (volume >= 1e6) return `${(volume / 1e6).toFixed(1)}M`;
+  if (volume >= 1e3) return `${(volume / 1e3).toFixed(1)}K`;
+  return volume.toFixed(0);
 };
 
-// Quick Stat Component - Ultra Glass
+// Quick Stat - Compact
 const QuickStat = ({ label, value, trend }) => {
-  const getTrendColor = () => {
-    switch (trend) {
-      case 'up': return '#30D158';
-      case 'down': return '#FF453A';
-      default: return 'rgba(255,255,255,0.6)';
-    }
-  };
-
+  const color = trend === 'up' ? '#30D158' : trend === 'down' ? '#FF453A' : 'rgba(255,255,255,0.6)';
   return (
-    <div className="ultra-glass-card p-3">
-      <span className="text-xs text-white/40 block mb-1">{label}</span>
-      <span className="text-base font-semibold font-mono" style={{ color: getTrendColor() }}>
-        {value}
-      </span>
+    <div className="ultra-glass-card p-2.5 rounded-xl">
+      <span className="text-[10px] text-white/40 block">{label}</span>
+      <span className="text-sm font-semibold font-mono" style={{ color }}>{value}</span>
     </div>
   );
 };

@@ -240,6 +240,7 @@ const analyzeVolume = (data) => {
 
 /**
  * Generuje poziomy Trade Setup z NOWYM mnożnikiem ATR = 2.0
+ * Wspiera dynamiczne parametry na podstawie horyzontu (scalp/short/swing)
  * @param {number} slMultiplier - domyślnie 2.0 (bezpieczniejszy)
  * @param {number} riskReward - domyślnie 2 (R:R 1:2)
  */
@@ -419,7 +420,7 @@ const analyzeHigherTimeframeTrend = (htfData) => {
  * 4. SL = ATR × 2.0 (bezpieczniejszy)
  */
 export const analyzeMarketData = (data, symbol, options = {}) => {
-  const { higherTfData, currentInterval } = options;
+  const { higherTfData, currentInterval, horizon } = options;
   
   if (!data || data.length < 30) {
     return {
@@ -664,9 +665,21 @@ export const analyzeMarketData = (data, symbol, options = {}) => {
     tradeDirection = null;
   }
   
-  // Generuj setup z ATR × 2.0
+  // Generuj setup z dynamicznymi parametrami na podstawie horyzontu
+  let slMultiplier = 2.0;
+  let rrRatio = 2;
+  
+  if (horizon === 'scalp') {
+    slMultiplier = 1.5;
+    rrRatio = 2;
+  } else if (horizon === 'swing') {
+    slMultiplier = 2.5;
+    rrRatio = 3;
+  }
+  // 'short' i domyślny: slMultiplier = 2.0, rrRatio = 2
+
   let tradeSetup = tradeDirection && atr 
-    ? calculateTradeSetup(currentCandle.close, atr, tradeDirection, 2.0, 2, riskLevel)
+    ? calculateTradeSetup(currentCandle.close, atr, tradeDirection, slMultiplier, rrRatio, riskLevel)
     : null;
   
   if (tradeSetup) {

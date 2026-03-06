@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getProfileRest, updateProfileRest } from '../lib/supabaseRest';
+import { ensureProfileColumns } from '../lib/supabaseHelpers';
 
 const AuthContext = createContext({});
 
@@ -28,6 +29,9 @@ export const AuthProvider = ({ children }) => {
     if (!userId) return null;
     
     try {
+      // Upewnij się że kolumny telegram_enabled i auto_send_signals istnieją
+      await ensureProfileColumns(userId);
+
       // Użyj REST API zamiast SDK
       const data = await getProfileRest(userId);
       
