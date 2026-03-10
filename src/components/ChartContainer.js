@@ -463,45 +463,35 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
   }, []);
 
   return (
-    <div className={`ultra-glass rounded-2xl transition-all duration-300 flex flex-col ${
+    <div className={`card transition-all duration-300 flex flex-col ${
       isFullscreen ? 'fixed inset-4 z-50' : 'h-full'
     }`}
     style={{
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif",
       overflow: 'visible',
       position: 'relative',
       minHeight: 0,
     }}>
-      {/* Header - bez traffic light buttons */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10"
-           style={{ background: 'rgba(255,255,255,0.05)' }}>
+      {/* Header */}
+      <div className="flex-shrink-0 flex items-center justify-between px-3 py-2.5 border-b border-main">
         {/* Symbol & Price - Left */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div>
-            <h2 className="text-base font-semibold text-white flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-main flex items-center gap-2">
               {symbol}
               {isLive && (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
-                      style={{ background: 'rgba(48, 209, 88, 0.2)', color: '#30D158' }}>
-                  <Radio className="w-3 h-3 animate-pulse" />
+                <span className="badge badge-success text-2xs">
+                  <Radio className="w-2.5 h-2.5 animate-pulse" />
                   LIVE
                 </span>
               )}
             </h2>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xl font-bold text-white font-mono">
+              <span className="text-base font-bold text-main font-mono">
                 {formatPrice(currentPrice)}
               </span>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                priceChange.percent >= 0 
-                  ? 'text-[#30D158]' 
-                  : 'text-[#FF453A]'
-              }`}
-              style={{
-                background: priceChange.percent >= 0 
-                  ? 'rgba(48, 209, 88, 0.2)' 
-                  : 'rgba(255, 69, 58, 0.2)'
-              }}>
+              <span className={`badge text-2xs font-mono ${
+                priceChange.percent >= 0 ? 'badge-success' : 'badge-danger'
+              }`}>
                 {priceChange.percent >= 0 ? '+' : ''}{priceChange.percent.toFixed(2)}%
               </span>
             </div>
@@ -509,168 +499,107 @@ const ChartContainer = memo(({ data, symbol, onAnalysisUpdate, isLive = false, i
         </div>
 
         {/* Countdown - Center */}
-        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full"
-             style={{ background: 'rgba(255, 214, 10, 0.1)', border: '1px solid rgba(255, 214, 10, 0.2)' }}>
-          <Clock className="w-4 h-4" style={{ color: '#FFD60A' }} />
-          <span className="text-sm font-mono font-semibold" style={{ color: '#FFD60A' }}>{countdown}</span>
+        <div className="badge badge-warning">
+          <Clock className="w-3 h-3" />
+          <span className="text-xs font-mono font-medium">{countdown}</span>
         </div>
 
         {/* Control Buttons - Right */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleZoomIn}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            title="Przybliż"
-          >
-            <ZoomIn className="w-4 h-4 text-white/60" />
+        <div className="flex items-center gap-0.5">
+          <button onClick={handleZoomIn} className="btn-icon p-1.5" title="Przybliż">
+            <ZoomIn className="w-4 h-4" />
           </button>
-          <button
-            onClick={handleZoomOut}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            title="Oddal"
-          >
-            <ZoomOut className="w-4 h-4 text-white/60" />
+          <button onClick={handleZoomOut} className="btn-icon p-1.5" title="Oddal">
+            <ZoomOut className="w-4 h-4" />
           </button>
-          <button
-            onClick={handleReset}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            title="Resetuj widok"
-          >
-            <RefreshCw className="w-4 h-4 text-white/60" />
+          <button onClick={handleReset} className="btn-icon p-1.5" title="Resetuj widok">
+            <RefreshCw className="w-4 h-4" />
           </button>
-          <button
-            onClick={toggleFullscreen}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            title={isFullscreen ? 'Zamknij pełny ekran' : 'Pełny ekran'}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="w-4 h-4 text-white/60" />
-            ) : (
-              <Maximize2 className="w-4 h-4 text-white/60" />
-            )}
+          <button onClick={toggleFullscreen} className="btn-icon p-1.5" title={isFullscreen ? 'Zamknij pełny ekran' : 'Pełny ekran'}>
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
       {/* Legenda wskaźników */}
-      <div className="flex-shrink-0 flex items-center gap-4 px-4 py-2 text-xs border-b border-white/5" 
-           style={{ background: 'rgba(0,0,0,0.2)' }}>
-        <div className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 rounded" style={{ background: '#FFD60A' }}></span>
-          <span className="text-white/50">SMA 20</span>
+      <div className="flex-shrink-0 flex items-center gap-3 px-3 py-1.5 text-2xs border-b border-main bg-sub">
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-0.5 rounded bg-yellow-500"></span>
+          <span className="text-dim">SMA 20</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 rounded" style={{ background: '#BF5AF2' }}></span>
-          <span className="text-white/50">SMA 50</span>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-0.5 rounded bg-purple-500"></span>
+          <span className="text-dim">SMA 50</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm" style={{ background: 'rgba(48, 209, 88, 0.4)' }}></span>
-          <span className="text-white/50">Bullish</span>
+        <div className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-up/40"></span>
+          <span className="text-dim">Bullish</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm" style={{ background: 'rgba(255, 69, 58, 0.4)' }}></span>
-          <span className="text-white/50">Bearish</span>
+        <div className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-down/40"></span>
+          <span className="text-dim">Bearish</span>
         </div>
       </div>
 
       {/* Chart wrapper z paskiem narzędzi */}
       <div className="relative flex flex-1 min-h-0" style={{ overflow: 'visible' }}>
-        {/* Drawing Toolbar - lewy pasek narzędzi Glassmorphism */}
-        <div className="absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-xl p-1.5"
-             style={{ 
-               background: 'rgba(28, 32, 43, 0.8)', 
-               border: '1px solid rgba(255,255,255,0.1)',
-               backdropFilter: 'blur(20px)',
-             }}>
+        {/* Drawing Toolbar */}
+        <div className="absolute left-2 top-2 z-10 flex flex-col gap-0.5 card p-1">
           <button
             onClick={() => handleToolClick('pencil')}
-            className={`p-2.5 rounded-lg transition-all duration-200 ${
-              activeTool === 'pencil' 
-                ? 'text-white shadow-lg ring-apple-blue' 
-                : 'hover:bg-white/10 text-white/50'
-            }`}
-            style={activeTool === 'pencil' ? { background: '#007AFF' } : {}}
+            className={`btn-icon p-2 ${activeTool === 'pencil' ? 'active' : ''}`}
             title="Marker"
           >
-            <Circle className="w-4 h-4" />
+            <Circle className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => handleToolClick('line')}
-            className={`p-2.5 rounded-lg transition-all duration-200 ${
-              activeTool === 'line' 
-                ? 'text-white shadow-lg' 
-                : 'hover:bg-white/10 text-white/50'
-            }`}
-            style={activeTool === 'line' ? { background: '#007AFF' } : {}}
+            className={`btn-icon p-2 ${activeTool === 'line' ? 'active' : ''}`}
             title="Linia pozioma"
           >
-            <Minus className="w-4 h-4" />
+            <Minus className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => handleToolClick('trendline')}
-            className={`p-2.5 rounded-lg transition-all duration-200 ${
-              activeTool === 'trendline' 
-                ? 'text-white shadow-lg' 
-                : 'hover:bg-white/10 text-white/50'
-            }`}
-            style={activeTool === 'trendline' ? { background: '#007AFF' } : {}}
+            className={`btn-icon p-2 ${activeTool === 'trendline' ? 'active' : ''}`}
             title="Linia trendu"
           >
-            <TrendingUp className="w-4 h-4" />
+            <TrendingUp className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => handleToolClick('rectangle')}
-            className={`p-2.5 rounded-lg transition-all duration-200 ${
-              activeTool === 'rectangle' 
-                ? 'text-white shadow-lg' 
-                : 'hover:bg-white/10 text-white/50'
-            }`}
-            style={activeTool === 'rectangle' ? { background: '#007AFF' } : {}}
+            className={`btn-icon p-2 ${activeTool === 'rectangle' ? 'active' : ''}`}
             title="Prostokąt"
           >
-            <Square className="w-4 h-4" />
+            <Square className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => handleToolClick('text')}
-            className={`p-2.5 rounded-lg transition-all duration-200 ${
-              activeTool === 'text' 
-                ? 'text-white shadow-lg' 
-                : 'hover:bg-white/10 text-white/50'
-            }`}
-            style={activeTool === 'text' ? { background: '#007AFF' } : {}}
+            className={`btn-icon p-2 ${activeTool === 'text' ? 'active' : ''}`}
             title="Notatka"
           >
-            <Type className="w-4 h-4" />
+            <Type className="w-3.5 h-3.5" />
           </button>
           
-          {/* Separator */}
-          <div className="w-full h-px my-1" style={{ background: 'rgba(255,255,255,0.1)' }}></div>
+          <div className="divider my-0.5"></div>
           
-          {/* Kosz - czyści markery */}
           <button
             onClick={clearAllMarkers}
-            className="p-2.5 rounded-lg transition-all duration-200 hover:bg-red-500/20 text-white/50 hover:text-red-400"
+            className="btn-icon p-2 hover:text-down"
             title="Wyczyść wszystko"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Aktywne narzędzie info */}
         {activeTool && (
-          <div className="absolute left-16 top-3 z-10 flex items-center gap-2 rounded-lg px-3 py-1.5"
-               style={{ 
-                 background: 'rgba(0,122,255,0.2)', 
-                 border: '1px solid rgba(0,122,255,0.3)',
-                 backdropFilter: 'blur(10px)',
-               }}>
-            <span className="text-xs" style={{ color: '#007AFF' }}>
-              Kliknij na wykresie aby dodać marker
-            </span>
+          <div className="absolute left-14 top-2 z-10 badge badge-info">
+            <span className="text-2xs">Kliknij na wykresie</span>
           </div>
         )}
 
-        {/* Chart container - flex-1 fills remaining space */}
+        {/* Chart container */}
         <div 
           ref={chartContainerRef} 
           className="w-full flex-1"

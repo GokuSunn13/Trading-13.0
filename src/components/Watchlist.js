@@ -121,45 +121,37 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
   );
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Logo & Header */}
-      <div className="p-4 border-b border-white/5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <BarChart3 className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-gradient">AI Trading</h1>
-            <p className="text-xs text-gray-500">Analyzer Pro</p>
-          </div>
+    <div className="h-full flex flex-col bg-main">
+      {/* Header */}
+      <div className="p-4 border-b border-main">
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart3 className="w-5 h-5 text-accent" />
+          <span className="font-semibold text-main text-sm">Watchlist</span>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-dim" />
           <input
             type="text"
-            placeholder="Szukaj instrumentu..."
+            placeholder="Szukaj..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-dark-400/50 border border-white/5 
-                     text-sm text-gray-300 placeholder-gray-500
-                     focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25
-                     transition-all"
+            className="input pl-9 py-2 text-sm"
           />
         </div>
       </div>
 
       {/* Watchlist Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto">
         {/* Favorites Section */}
         {favoriteSymbols.length > 0 && (
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-              <Star className="w-3.5 h-3.5 text-yellow-500" />
+            <div className="section-header">
+              <Star className="w-3 h-3 text-warn" />
               Ulubione
-            </h3>
-            <div className="space-y-1">
+            </div>
+            <div>
               {favoriteSymbols.map(symbol => {
                 const { price, change } = getSymbolData(symbol);
                 const isSelected = selectedSymbol === symbol;
@@ -172,40 +164,32 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
                     tabIndex={0}
                     onClick={() => onSelectSymbol(symbol)}
                     onKeyDown={(e) => e.key === 'Enter' && onSelectSymbol(symbol)}
-                    className={`w-full p-3 rounded-lg transition-all duration-200 group cursor-pointer
-                              ${isSelected 
-                                ? 'bg-blue-500/20 border border-blue-500/30' 
-                                : 'glass hover:bg-white/5 border border-transparent'
-                              }`}
+                    className={`watchlist-row ${isSelected ? 'selected' : ''}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={(e) => toggleFavorite(symbol, e)}
-                          className="p-1 rounded hover:bg-white/10"
-                          disabled={togglingSymbol === symbol}
-                        >
-                          {togglingSymbol === symbol ? (
-                            <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />
-                          ) : (
-                            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                          )}
-                        </button>
-                        <div className="text-left">
-                          <span className="font-medium text-white block">{symbol}</span>
-                          <span className="text-xs text-gray-500">{formatPrice(price, symbol)}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-mono ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-                          {isPositive ? '+' : ''}{change.toFixed(2)}%
-                        </span>
-                        {isPositive ? (
-                          <TrendingUp className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <TrendingDown className="w-4 h-4 text-red-400" />
-                        )}
-                      </div>
+                    <button
+                      onClick={(e) => toggleFavorite(symbol, e)}
+                      className="btn-icon p-1"
+                      disabled={togglingSymbol === symbol}
+                    >
+                      {togglingSymbol === symbol ? (
+                        <Loader2 className="w-4 h-4 text-warn animate-spin" />
+                      ) : (
+                        <Star className="w-4 h-4 text-warn fill-current" />
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-main text-sm block truncate">{symbol}</span>
+                      <span className="text-xs text-dim font-mono">{formatPrice(price, symbol)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-xs font-mono font-medium ${isPositive ? 'text-up' : 'text-down'}`}>
+                        {isPositive ? '+' : ''}{change.toFixed(2)}%
+                      </span>
+                      {isPositive ? (
+                        <TrendingUp className="w-3 h-3 text-up" />
+                      ) : (
+                        <TrendingDown className="w-3 h-3 text-down" />
+                      )}
                     </div>
                   </div>
                 );
@@ -217,11 +201,11 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
         {/* Categories */}
         {filteredCategories.map(category => (
           <div key={category.key}>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-              <category.icon className="w-3.5 h-3.5" />
+            <div className="section-header">
+              <category.icon className="w-3 h-3" />
               {category.name}
-            </h3>
-            <div className="space-y-1">
+            </div>
+            <div>
               {category.symbols.map(symbol => {
                 const { price, change } = getSymbolData(symbol);
                 const isSelected = selectedSymbol === symbol;
@@ -235,36 +219,28 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
                     tabIndex={0}
                     onClick={() => onSelectSymbol(symbol)}
                     onKeyDown={(e) => e.key === 'Enter' && onSelectSymbol(symbol)}
-                    className={`w-full p-3 rounded-lg transition-all duration-200 group cursor-pointer
-                              ${isSelected 
-                                ? 'bg-blue-500/20 border border-blue-500/30' 
-                                : 'glass hover:bg-white/5 border border-transparent'
-                              }`}
+                    className={`watchlist-row ${isSelected ? 'selected' : ''}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={(e) => toggleFavorite(symbol, e)}
-                          className="p-1 rounded hover:bg-white/10"
-                          disabled={togglingSymbol === symbol}
-                        >
-                          {togglingSymbol === symbol ? (
-                            <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />
-                          ) : (
-                            <Star className={`w-4 h-4 ${isFavorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600'}`} />
-                          )}
-                        </button>
-                        <div className="text-left">
-                          <span className="font-medium text-white block">{symbol}</span>
-                          <span className="text-xs text-gray-500">{formatPrice(price, symbol)}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-mono ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-                          {isPositive ? '+' : ''}{change.toFixed(2)}%
-                        </span>
-                        <ChevronRight className={`w-4 h-4 transition-transform ${isSelected ? 'text-blue-400 translate-x-1' : 'text-gray-600'}`} />
-                      </div>
+                    <button
+                      onClick={(e) => toggleFavorite(symbol, e)}
+                      className="btn-icon p-1"
+                      disabled={togglingSymbol === symbol}
+                    >
+                      {togglingSymbol === symbol ? (
+                        <Loader2 className="w-4 h-4 text-warn animate-spin" />
+                      ) : (
+                        <Star className={`w-4 h-4 ${isFavorite ? 'text-warn fill-current' : 'text-dim'}`} />
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-main text-sm block truncate">{symbol}</span>
+                      <span className="text-xs text-dim font-mono">{formatPrice(price, symbol)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-xs font-mono font-medium ${isPositive ? 'text-up' : 'text-down'}`}>
+                        {isPositive ? '+' : ''}{change.toFixed(2)}%
+                      </span>
+                      <ChevronRight className={`w-3 h-3 transition-transform ${isSelected ? 'text-accent translate-x-0.5' : 'text-dim'}`} />
                     </div>
                   </div>
                 );
@@ -273,12 +249,14 @@ const Watchlist = ({ symbols, selectedSymbol, onSelectSymbol, marketData, ticker
           </div>
         ))}
       </div>
+      
       {/* Notification Settings */}
       <NotificationSettings />
+      
       {/* Footer */}
-      <div className="p-4 border-t border-white/5">
-        <div className="text-xs text-gray-500 text-center">
-          Dane z Binance • Nie stanowią porady finansowej
+      <div className="p-3 border-t border-main">
+        <div className="text-2xs text-dim text-center">
+          Dane z Binance
         </div>
       </div>
     </div>
